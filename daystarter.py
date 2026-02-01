@@ -320,6 +320,28 @@ def display_menu(note_path):
     print("  [n] Quick note (type then press Enter)")
     print("  [q] Quit")
 
+def get_stock_prices():
+    """Get stock prices for major tech/TMT companies"""
+    stock_script = Path.home() / ".openclaw" / "workspace" / "stock_prices.py"
+
+    if not stock_script.exists():
+        return None
+
+    try:
+        result = subprocess.run(
+            ["python3", str(stock_script)],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0 and result.stdout:
+            return result.stdout
+    except Exception as e:
+        pass
+
+    return None
+
 def get_sydney_time():
     """Get current time in Sydney"""
     try:
@@ -373,6 +395,13 @@ def main():
         print(format_news(news))
     else:
         print("\n📰 Overnight News:\n  Unable to fetch news")
+
+    # Stock Prices
+    stocks = get_stock_prices()
+    if stocks:
+        print(stocks)
+    else:
+        print("\n💹 Stock Prices:\n  Unable to fetch")
 
     # Daily note
     note_path = get_daily_note()
