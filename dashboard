@@ -1,0 +1,4 @@
+#!/bin/bash
+# Jarvis Dashboard - Visual Kanban Board
+DASHBOARD_SCRIPT="/Users/bclawd/.openclaw/workspace/dashboard.py"
+python3 "$DASHBOARD_SCRIPT" "$@"
