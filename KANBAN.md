@@ -17,7 +17,12 @@ A transparent view of what I'm working on for Bob.
 - [ ] Add market index summary (Dow, S&P, Nasdaq) to Day Starter
 
 ## 🔄 In Progress
-- None currently
+- [ ] Discord integration for Jarvis Remote Dashboard
+  - [ ] Determine integration approach (new bot vs existing channel)
+  - [ ] Implement Discord commands (/dash, /stocks, /tasks, /news, /memo, /calendar)
+  - [ ] Add rich embeds and interactive buttons
+  - [ ] Test end-to-end
+  - [ ] Deploy to production
 
 ## ✅ Done
 - [x] **Jarvis Remote Dashboard Web Server** - Flask web server with API endpoints
