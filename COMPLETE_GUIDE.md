@@ -7,12 +7,19 @@
 ## 🌐 Your Remote Access URL
 
 ```
-https://allied-wright-scene-governments.trycloudflare.com
+https://graduates-enquiry-construction-novel.trycloudflare.com
 ```
 
 **Open this URL on your phone** to access Jarvis Dashboard from anywhere!
 
 ---
+
+### 🎯 Note About Tunnel Stability
+
+Free Cloudflare tunnels with random hostnames may occasionally change:
+- If URL becomes inaccessible, re-run: `jarvis-dashboard.sh`
+- The tunnel may expire after inactivity
+- Bookmark this URL for easy access
 
 ## What's Included
 

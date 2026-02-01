@@ -5,6 +5,11 @@ A transparent view of what I'm working on for Bob.
 ---
 
 ## 📋 To Do
+- [ ] Create Telegram bot with python-telegram-bot
+  - [ ] Implement command handlers (/dash, /status, /stocks, /tasks, /memo, /calendar)
+  - [ ] Add bot commands to execute Jarvis actions
+  - [ ] Test end-to-end integration
+  - [ ] Deploy bot to production
 - [ ] Improve Day Starter news filtering (better TMT/finance relevance)
 - [ ] Create task management CLI for Bob
 - [ ] Add habit tracking to Day Starter
@@ -12,11 +17,7 @@ A transparent view of what I'm working on for Bob.
 - [ ] Add market index summary (Dow, S&P, Nasdaq) to Day Starter
 
 ## 🔄 In Progress
-- [ ] Create Telegram bot with python-telegram-bot
-  - [ ] Implement command handlers (/dash, /status, /stocks, /tasks, /memo, /calendar)
-  - [ ] Add bot commands to execute Jarvis actions
-  - [ ] Test end-to-end integration
-  - [ ] Deploy bot to production
+- None currently
 
 ## ✅ Done
 - [x] **Jarvis Remote Dashboard Web Server** - Flask web server with API endpoints
@@ -26,6 +27,9 @@ A transparent view of what I'm working on for Bob.
   - [x] Created jarvis-server wrapper script
   - [x] Authentication token system (X-Auth-Token: jarvis-2026)
   - [x] Documentation created (REMOTE_DASHBOARD_README.md)
+  - [x] **Cloudflare tunnel working** - Free secure tunnel for mobile access
+  - [x] Created jarvis-dashboard.sh for easy tunnel restart
+  - [x] Tunnel URL: https://graduates-enquiry-construction-novel.trycloudflare.com
   - [x] Pushed to GitHub
 
 ## ✅ Done
