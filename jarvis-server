@@ -1,0 +1,4 @@
+#!/bin/bash
+# Jarvis Remote Dashboard - Start server
+DASHBOARD_SERVER="/Users/bclawd/.openclaw/workspace/remote_dashboard.py"
+python3 "$DASHBOARD_SERVER" "$@"
