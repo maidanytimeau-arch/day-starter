@@ -1,0 +1,4 @@
+#!/bin/bash
+# Day Starter - Quick daily dashboard
+PYTHON_SCRIPT="/Users/bclawd/.openclaw/workspace/day-starter/daystarter.py"
+python3 "$PYTHON_SCRIPT" "$@"
