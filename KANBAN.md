@@ -13,10 +13,10 @@ A transparent view of what I'm working on for Bob.
 
 ## 🔄 In Progress
 - [ ] Create Telegram bot with python-telegram-bot
-  - [ ] Implement command handlers
-  - [ ] Add bot commands to execute actions
-  - [ ] Test end-to-end
-  - [ ] Deploy and setup auto-start
+  - [ ] Implement command handlers (/dash, /status, /stocks, /tasks, /memo, /calendar)
+  - [ ] Add bot commands to execute Jarvis actions
+  - [ ] Test end-to-end integration
+  - [ ] Deploy bot to production
 
 ## ✅ Done
 - [x] **Jarvis Remote Dashboard Web Server** - Flask web server with API endpoints
