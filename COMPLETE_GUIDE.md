@@ -14,6 +14,28 @@ https://graduates-enquiry-construction-novel.trycloudflare.com
 
 ---
 
+## 📱 How to Find Your Mac's Local IP
+
+**Method 1: System Settings (Easiest)**
+1. Open: System Settings → Network
+2. Look for: "Wi-Fi address" or "Your local IP"
+3. It will look like: `192.168.x.x`
+
+**Method 2: Check Tunnel Output**
+Run the startup script:
+```bash
+./start-jarvis.sh
+```
+The script will display the tunnel URL after it's ready.
+
+**Using Same WiFi Network:**
+If your phone is on the same WiFi as your Mac, use the local IP:
+```
+http://192.168.64.2:5000
+```
+
+---
+
 ### 🎯 Note About Tunnel Stability
 
 Free Cloudflare tunnels with random hostnames may occasionally change:
