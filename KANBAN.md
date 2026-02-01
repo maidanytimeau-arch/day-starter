@@ -12,14 +12,21 @@ A transparent view of what I'm working on for Bob.
 - [ ] Add market index summary (Dow, S&P, Nasdaq) to Day Starter
 
 ## 🔄 In Progress
-- [ ] Build Jarvis Remote Dashboard & Control System
-  - [ ] Create Flask web server for dashboard
-  - [ ] Add API endpoints for commands
-  - [ ] Create Telegram bot with python-telegram-bot
-  - [ ] Implement commands: /dash, /status, /daystarter, /stocks, /kanban
-  - [ ] Add authentication/security
+- [ ] Create Telegram bot with python-telegram-bot
+  - [ ] Implement command handlers
+  - [ ] Add bot commands to execute actions
   - [ ] Test end-to-end
   - [ ] Deploy and setup auto-start
+
+## ✅ Done
+- [x] **Jarvis Remote Dashboard Web Server** - Flask web server with API endpoints
+  - [x] Created Flask web server (remote_dashboard.py)
+  - [x] Added API endpoints: /status, /dash, /stocks, /kanban, /memo, /calendar
+  - [x] Tested endpoints working
+  - [x] Created jarvis-server wrapper script
+  - [x] Authentication token system (X-Auth-Token: jarvis-2026)
+  - [x] Documentation created (REMOTE_DASHBOARD_README.md)
+  - [x] Pushed to GitHub
 
 ## ✅ Done
 - [x] **Jarvis Dashboard** - Visual kanban board and project tracking
