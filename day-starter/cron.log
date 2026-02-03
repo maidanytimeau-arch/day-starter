@@ -1,0 +1,49 @@
+[2026-02-03 07:30:01] === Day Starter Cron Job Started ===
+[2026-02-03 07:30:01] PID: 9652
+[2026-02-03 07:30:01] PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin
+[2026-02-03 07:30:01] HOME: /Users/bclawd
+[2026-02-03 07:30:01] PWD: /Users/bclawd
+[2026-02-03 07:30:01] Executing daystarter...
+[2026-02-03 07:30:01] OUTPUT: /Users/bclawd/.openclaw/workspace/day-starter/daystarter-cron-wrapper.sh: line 48: /usr/bin/timeout: No such file or directory
+[2026-02-03 07:30:01] ERROR: Day starter exited with code 127
+[2026-02-03 07:30:01] === Day Starter Cron Job Finished (Exit: 127) ===
+[2026-02-03 07:30:01] 
+[2026-02-04 07:30:00] === Day Starter Cron Job Started ===
+[2026-02-04 07:30:00] PID: 38603
+[2026-02-04 07:30:00] PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin
+[2026-02-04 07:30:00] HOME: /Users/bclawd
+[2026-02-04 07:30:00] PWD: /Users/bclawd
+[2026-02-04 07:30:00] Executing daystarter...
+[2026-02-04 07:30:16] OUTPUT: ==================================================
+[2026-02-04 07:30:16] OUTPUT: 🌅 Good morning, Bob!
+[2026-02-04 07:30:16] OUTPUT: 📅 Wednesday, February 04, 2026
+[2026-02-04 07:30:16] OUTPUT: ==================================================
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: 🌤️  Weather unavailable
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: 📅 Today's Calendar:
+[2026-02-04 07:30:16] OUTPUT:   No events today
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: 📋 No reminders for today
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: 📰 Overnight Finance & Tech News (US/UK):
+[2026-02-04 07:30:16] OUTPUT:   • [Bloomberg] Stocks Fall From Near-Record Levels as Oil Jumps: Markets Wrap
+[2026-02-04 07:30:16] OUTPUT:   • [Bloomberg] Bankers Prepare €2.5 Billion Debt for ContiTech Unit Sale
+[2026-02-04 07:30:16] OUTPUT:   • [Bloomberg] House Passes Government Funding Package to End Partial Shutdown
+[2026-02-04 07:30:16] OUTPUT:   • [CNBC] China set to attend India's upcoming AI summit signaling improving relations with New Delhi
+[2026-02-04 07:30:16] OUTPUT:   • [CNBC] We just got reasons to love these 2 portfolio stocks even more
+[2026-02-04 07:30:16] OUTPUT:   • [TechCrunch] YC startups can now receive investment in stablecoin
+[2026-02-04 07:30:16] OUTPUT:   • [TechCrunch] 2026 plans: What’s next for Startup Battlefield 200
+[2026-02-04 07:30:16] OUTPUT:   • [TechCrunch] Homeland Security is trying to force tech companies to hand over data about Trump critics
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: 📝 Planning note: /Users/bclawd/Documents/DayStarters/2026-02-04.md
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: Actions:
+[2026-02-04 07:30:16] OUTPUT:   [o] Open today's note
+[2026-02-04 07:30:16] OUTPUT:   [n] Quick note (type then press Enter)
+[2026-02-04 07:30:16] OUTPUT:   [q] Quit
+[2026-02-04 07:30:16] OUTPUT: 
+[2026-02-04 07:30:16] OUTPUT: ✓ Briefing complete
+[2026-02-04 07:30:16] SUCCESS: Day starter completed normally
+[2026-02-04 07:30:16] === Day Starter Cron Job Finished (Exit: 0) ===
+[2026-02-04 07:30:16] 
