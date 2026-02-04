@@ -14,12 +14,21 @@ To run the daystarter manually:
 /Users/bclawd/.openclaw/workspace/day-starter/daystarter --non-interactive
 ```
 
-## Memory Maintenance (Periodic - Every Few Days)
+## Memory Maintenance (Every 2-3 Days)
 
-As part of heartbeats, periodically review recent memory files and update long-term memory:
+As part of heartbeats, periodically review recent memory files and update long-term memory.
 
-1. Read recent `memory/YYYY-MM-DD.md` files (last 2-7 days)
-2. Identify significant events, lessons, or insights worth keeping
+**Frequency: Every 2-3 days** (or weekly during quiet periods)
+
+**Trigger checks:**
+- ✅ 2-3 daily files accumulated
+- ✅ Last review was ≥2 days ago
+- ✅ Major project/decision completed
+- ✅ Something feels like it belongs in long-term memory
+
+**Process:**
+1. Read last 2-7 `memory/YYYY-MM-DD.md` files
+2. Extract patterns, lessons, configurations, preferences
 3. Update `MEMORY.md` with distilled learnings
 4. Update `NOW.md` with current context and active tasks
 5. Remove outdated info from MEMORY.md that's no longer relevant
