@@ -45,6 +45,30 @@ Curated wisdom distilled from daily logs. This is what matters.
 - `Kimi-K2.5` → `chutesai/moonshotai/Kimi-K2.5-TEE` (current default)
 - `Qwen3` → `chutesai/Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
 
+**Model Selection Guide:**
+
+**Kimi-K2.5 - Best for:**
+- Deep thinking and complex reasoning
+- Long-form analysis and planning
+- Tasks where thinking depth > token efficiency
+- User preference: "I like kimi-2.5 for deeper thinking"
+
+**GLM-4.7 (zai unlimited) - Primary workhorse:**
+- 90% of all tasks (no cost concern)
+- Main session orchestration
+- Parallel subagent spawning
+- Web searches, coding, research
+
+**DS-V3 - Fast/cheap:**
+- Quick web searches
+- Bulk simple processing
+- When speed > quality
+
+**DS-R1 / Qwen3 - Specialized:**
+- Coding tasks (when GLM-4.7 or Kimi-K2.5 not available)
+- Specific model capabilities needed
+- Experimental comparisons
+
 **Config files:**
 - `/Users/bclawd/.openclaw/openclaw.json`
 - `/Users/bclawd/.openclaw/agents/main/agent/models.json`
