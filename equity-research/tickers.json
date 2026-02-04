@@ -1,0 +1,21 @@
+{
+  "coverage": [
+    {"ticker": "LIF", "company": "Life360 Inc", "exchange": "ASX"},
+    {"ticker": "ABB", "company": "Aussie Broadband", "exchange": "ASX"},
+    {"ticker": "CAR", "company": "CAR Group Ltd", "exchange": "ASX"},
+    {"ticker": "IEL", "company": "IDP Education Ltd", "exchange": "ASX"},
+    {"ticker": "MP1", "company": "Megaport Ltd", "exchange": "ASX"},
+    {"ticker": "NWS", "company": "News Corp", "exchange": "ASX"},
+    {"ticker": "NXT", "company": "NEXTDC Ltd", "exchange": "ASX"},
+    {"ticker": "REA", "company": "REA Group Ltd", "exchange": "ASX"},
+    {"ticker": "SEK", "company": "SEEK Ltd", "exchange": "ASX"},
+    {"ticker": "SLC", "company": "Superloop Ltd", "exchange": "ASX"},
+    {"ticker": "TLS", "company": "Telstra Group Ltd", "exchange": "ASX"},
+    {"ticker": "TNE", "company": "Technology One", "exchange": "ASX"},
+    {"ticker": "TPG", "company": "TPG Telecom Ltd", "exchange": "ASX"},
+    {"ticker": "WTC", "company": "WiseTech Global", "exchange": "ASX"},
+    {"ticker": "XRO", "company": "Xero Ltd", "exchange": "ASX"},
+    {"ticker": "XYZ", "company": "Block Inc", "exchange": "ASX"},
+    {"ticker": "ZIP", "company": "Zip Co Ltd", "exchange": "ASX"}
+  ]
+}

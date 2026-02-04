@@ -295,12 +295,29 @@ daystarter --non-interactive  # Output only, no prompts
 
 **Webhook endpoint:** `http://localhost:3000/webhook/activity`
 
-**Known Issue & Fix (2026-02-05):**
+**Known Issues & Fixes (2026-02-05):**
+
+**Issue 1 - Webhook URL Mismatch:**
 - **Problem:** `parser.js` had wrong webhook URL (`/webhook` instead of `/webhook/activity`)
 - **Symptoms:** HTTP 404 errors, no activity posting to Discord
 - **Fix:** Updated line 16 in `parser.js` to use correct endpoint
-- **Verification:** Check `pm2 logs claw-activity-parser` for 404 errors
-- **Note:** Parser uses `tail -F -n 0` so restarts don't replay old logs
+
+**Issue 2 - Authentication Failure:**
+- **Problem:** Parser wasn't sending `X-Webhook-Secret` header
+- **Symptoms:** HTTP 401 Unauthorized errors
+- **Fixes:**
+  1. Added `WEBHOOK_SECRET` constant to parser.js
+  2. Added `'X-Webhook-Secret': WEBHOOK_SECRET` to request headers
+  3. Fixed payload structure (removed wrapper layers, mapped to bot's expected format)
+
+**Payload format:**
+- Bot expects: `{ type, tool, result/error, timestamp }`
+- Parser now sends: Simple object without `type: 'activity'` wrapper
+
+**Verification:**
+- Check `pm2 logs claw-activity-parser` for errors
+- Manual test: `curl -X POST http://localhost:3000/webhook/activity -H "X-Webhook-Secret: ..." -d '{...}'`
+- Parser uses `tail -F -n 0` so restarts don't replay old logs
 
 ### GitHub Repository
 **URL:** https://github.com/maidanytimeau-arch/day-starter

@@ -17,12 +17,56 @@ A transparent view of what I'm working on for Bob.
 - [ ] Add market index summary (Dow, S&P, Nasdaq) to Day Starter
 
 ## 🔄 In Progress
-- [ ] Discord integration for Jarvis Remote Dashboard
-  - [ ] Determine integration approach (new bot vs existing channel)
-  - [ ] Implement Discord commands (/dash, /stocks, /tasks, /news, /memo, /calendar)
-  - [ ] Add rich embeds and interactive buttons
-  - [ ] Test end-to-end
-  - [ ] Deploy to production
+
+### 🍼 LittleBites - Baby Food Tracker (IN PROGRESS)
+- [ ] **Phase 1: MVP Development** (2-3 weeks)
+  - [x] Create UI mockups and design system ✅
+  - [x] Initialize Flutter project (iOS + Android) ✅
+  - [x] Install dependencies (Firebase, Riverpod, UI) ✅
+  - [x] Build core data models (Food, Log, Reaction, Profile) ✅
+  - [ ] Configure Firebase project (waiting for Bob)
+  - [ ] Implement Firebase Auth
+  - [ ] Implement Firebase Firestore
+  - [ ] Build app navigation structure
+  - [ ] Build Home screen
+  - [ ] Build Add Meal screen
+  - [ ] Implement food logging feature
+  - [ ] Implement allergen auto-tagging system
+  - [ ] Implement reaction tracking (severity 1-5)
+  - [ ] Implement poop tracking feature
+  - [ ] Build Food History screen
+  - [ ] Build Log Reaction screen
+  - [ ] Build Poop Log screen
+  - [ ] Build Profiles/Family screen
+  - [ ] Build Settings screen
+  - [ ] Add real-time sync testing
+  - [ ] Implement offline support
+  - [ ] Add data export (PDF/CSV)
+  - [ ] Add dark mode
+  - [ ] Bug fixes and beta testing
+
+- [ ] **Phase 2: Production Launch** (1-2 weeks)
+  - [ ] Set up App Store Connect (iOS)
+  - [ ] Set up Google Play Console (Android)
+  - [ ] Create privacy policy and terms of service
+  - [ ] Design app screenshots and descriptions
+  - [ ] Beta testing with family/friends
+  - [ ] Configure Firebase Analytics
+  - [ ] Submit to App Store (review 1-3 days)
+  - [ ] Submit to Google Play (review <1 day)
+  - [ ] Launch marketing campaign
+
+**Project Location:** `/Users/bclawd/.openclaw/workspace/baby-tracker/`
+**Documentation:** [PROJECT_PLAN.md](./baby-tracker/PROJECT_PLAN.md) | [README.md](./baby-tracker/README.md)
+**Tech Stack:** Flutter + Firebase
+**Timeline:** 4-5 weeks to MVP
+
+### 📱 Discord Integration for Jarvis Remote Dashboard
+- [ ] Determine integration approach (new bot vs existing channel)
+- [ ] Implement Discord commands (/dash, /stocks, /tasks, /news, /memo, /calendar)
+- [ ] Add rich embeds and interactive buttons
+- [ ] Test end-to-end
+- [ ] Deploy to production
 
 ## ✅ Done
 - [x] **Jarvis Remote Dashboard Web Server** - Flask web server with API endpoints

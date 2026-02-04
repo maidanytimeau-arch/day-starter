@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "930700432812",
+    "project_id": "littlebites-baby-tracker",
+    "storage_bucket": "littlebites-baby-tracker.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930700432812:android:a47281ee905ef845f15609",
+        "android_client_info": {
+          "package_name": "com.example.littlebites"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCB66fthLoyjtO5TXy0SaFFQeAQ4G7E94o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
