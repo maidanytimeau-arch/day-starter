@@ -39,35 +39,23 @@ Curated wisdom distilled from daily logs. This is what matters.
 - **Full reference:** `provider/modelId` (e.g., `chutesai/deepseek-ai/DeepSeek-V3`)
 
 **Model Aliases (use in config):**
-- `DS-V3` → `chutesai/deepseek-ai/DeepSeek-V3`
-- `DS-R1` → `chutesai/deepseek-ai/DeepSeek-R1-TEE`
-- `Kimi-K2` → `chutesai/moonshotai/Kimi-K2-Instruct-0905`
-- `Kimi-K2.5` → `chutesai/moonshotai/Kimi-K2.5-TEE` (current default)
-- `Qwen3` → `chutesai/Qwen/Qwen3-235B-A22B-Instruct-2507-TEE`
+- `GLM-4.7` → `zai/glm-4.7` (primary workhorse, unlimited)
+- `Kimi-K2.5` → `chutesai/moonshotai/Kimi-K2.5-TEE` (deep thinking preference)
 
-**Model Selection Guide:**
+**Model Selection Strategy:**
 
-**Kimi-K2.5 - Best for:**
+**GLM-4.7 (zai unlimited) - Use for 90% of tasks:**
+- Main session orchestration
+- Complex reasoning and analysis
+- Web searches, coding, research
+- Parallel subagent spawning
+- No cost concerns (unlimited tokens)
+
+**Kimi-K2.5 - Use for:**
 - Deep thinking and complex reasoning
 - Long-form analysis and planning
 - Tasks where thinking depth > token efficiency
 - User preference: "I like kimi-2.5 for deeper thinking"
-
-**GLM-4.7 (zai unlimited) - Primary workhorse:**
-- 90% of all tasks (no cost concern)
-- Main session orchestration
-- Parallel subagent spawning
-- Web searches, coding, research
-
-**DS-V3 - Fast/cheap:**
-- Quick web searches
-- Bulk simple processing
-- When speed > quality
-
-**DS-R1 / Qwen3 - Specialized:**
-- Coding tasks (when GLM-4.7 or Kimi-K2.5 not available)
-- Specific model capabilities needed
-- Experimental comparisons
 
 **Config files:**
 - `/Users/bclawd/.openclaw/openclaw.json`
@@ -170,6 +158,31 @@ pm2 startup                   # Auto-start on boot
 - Layer 1: Don't lose anything
 - Layer 2: Actually use what you learned
 - Layer 3: Resume where you left off
+
+### Subagent Strategy
+
+**Pattern: Main + Parallel Workers (unlimited GLM-4.7 makes this cost-free)**
+
+```
+Main Session (GLM-4.7 - orchestrator)
+    ↓ spawns parallel
+    ├─ Subagent A (GLM-4.7): Research stock X
+    ├─ Subagent B (GLM-4.7): Analyze logs Y
+    ├─ Subagent C (GLM-4.7): Write script Z
+    └─ Subagent D (GLM-4.7): Summarize findings
+
+All report back
+    ↓
+Main (GLM-4.7): Synthesize and respond
+```
+
+**When to use:**
+- Multiple stocks to research
+- Multiple files to process
+- Independent web searches
+- Separate analyses needed
+
+**Key insight:** With unlimited tokens, subagents become free. Spawn as many as needed - no cost penalty.
 
 ### Discord Bot Integration
 
