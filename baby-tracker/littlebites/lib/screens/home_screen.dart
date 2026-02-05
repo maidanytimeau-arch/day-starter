@@ -1,96 +1,183 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/providers/service_providers.dart';
+import '../services/providers/auth_providers.dart';
 import '../routes/app_routes.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final profile = MockDataService.getActiveProfile();
-    final todayMeals = MockDataService.getTodayMeals();
-    final recentReactions = MockDataService.getRecentReactions();
-    final recentPoopLogs = MockDataService.getRecentPoopLogs();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(profileServiceProvider);
+    final mealAsync = ref.watch(mealServiceProvider);
+    final reactionAsync = ref.watch(reactionServiceProvider);
+    final poopAsync = ref.watch(poopServiceProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('LittleBites'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () {
-              AppNavigator.navigateTo(context, AppRoutes.profiles);
-            },
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(context),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Pull to refresh
-        },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Date and weather
-            _buildDateHeader(),
-            const SizedBox(height: 20),
+    return profileAsync.when(
+      data: (profileService) {
+        return FutureBuilder(
+          future: _loadData(profileService, mealAsync, reactionAsync, poopAsync),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-            // Today's Meals
-            _buildSectionHeader('🍽️ Today\'s Meals', onTap: () => AppNavigator.navigateTo(context, AppRoutes.foodHistory)),
-            const SizedBox(height: 8),
-            if (todayMeals.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(
-                    child: Text(
-                      'No meals logged today',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+            final data = snapshot.data;
+            if (data == null) {
+              return const Scaffold(
+                body: Center(child: Text('Error loading data')),
+              );
+            }
+
+            final profile = data['profile'];
+            final todayMeals = data['todayMeals'] as List;
+            final recentReactions = data['recentReactions'] as List;
+            final recentPoopLogs = data['recentPoopLogs'] as List;
+
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('LittleBites'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      // TODO: Navigate to notifications
+                    },
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    onPressed: () {
+                      AppNavigator.navigateTo(context, AppRoutes.profiles);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () {
+                      ref.read(authServiceProvider).signOut();
+                    },
+                  ),
+                ],
+              ),
+              drawer: _buildDrawer(context),
+              body: RefreshIndicator(
+                onRefresh: () async {
+                  // Refresh providers
+                  ref.invalidate(profileServiceProvider);
+                  ref.invalidate(mealServiceProvider);
+                  ref.invalidate(reactionServiceProvider);
+                  ref.invalidate(poopServiceProvider);
+                },
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Date and weather
+                    _buildDateHeader(),
+                    const SizedBox(height: 20),
+
+                    // Today's Meals
+                    _buildSectionHeader('🍽️ Today\'s Meals', onTap: () => AppNavigator.navigateTo(context, AppRoutes.foodHistory)),
+                    const SizedBox(height: 8),
+                    if (todayMeals.isEmpty)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: Text(
+                              'No meals logged today',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ...todayMeals.map((meal) => _buildMealCard(context, meal)).toList(),
+                    const SizedBox(height: 20),
+
+                    // Recent Reactions
+                    if (recentReactions.isNotEmpty) ...[
+                      _buildSectionHeader('⚠️ Recent Reactions', onTap: () => AppNavigator.navigateTo(context, AppRoutes.logReaction)),
+                      const SizedBox(height: 8),
+                      ...recentReactions.take(2).map((reaction) => _buildReactionCard(context, reaction)),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Recent Poop Logs
+                    if (recentPoopLogs.isNotEmpty) ...[
+                      _buildSectionHeader('💩 Poop Log', onTap: () => AppNavigator.navigateTo(context, AppRoutes.poopLog)),
+                      const SizedBox(height: 8),
+                      ...recentPoopLogs.take(1).map((poop) => _buildPoopCard(context, poop)),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Stats summary
+                    _buildStatsCard(profile),
+                  ],
                 ),
-              )
-            else
-              ...todayMeals.map((meal) => _buildMealCard(context, meal)).toList(),
-            const SizedBox(height: 20),
-
-            // Recent Reactions
-            if (recentReactions.isNotEmpty) ...[
-              _buildSectionHeader('⚠️ Recent Reactions', onTap: () => AppNavigator.navigateTo(context, AppRoutes.logReaction)),
-              const SizedBox(height: 8),
-              ...recentReactions.take(2).map((reaction) => _buildReactionCard(context, reaction)),
-              const SizedBox(height: 20),
+              ),
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: () {
+                  AppNavigator.navigateTo(context, AppRoutes.addMeal);
+                },
+                backgroundColor: const Color(0xFF4A90E2),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text('Log Meal', style: TextStyle(color: Colors.white)),
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $error'),
             ],
-
-            // Recent Poop Logs
-            if (recentPoopLogs.isNotEmpty) ...[
-              _buildSectionHeader('💩 Poop Log', onTap: () => AppNavigator.navigateTo(context, AppRoutes.poopLog)),
-              const SizedBox(height: 8),
-              ...recentPoopLogs.take(1).map((poop) => _buildPoopCard(context, poop)),
-              const SizedBox(height: 20),
-            ],
-
-            // Stats summary
-            _buildStatsCard(profile),
-          ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          AppNavigator.navigateTo(context, AppRoutes.addMeal);
-        },
-        backgroundColor: const Color(0xFF4A90E2),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Log Meal', style: TextStyle(color: Colors.white)),
-      ),
     );
+  }
+
+  Future<Map<String, dynamic>> _loadData(
+    dynamic profileService,
+    AsyncValue mealAsync,
+    AsyncValue reactionAsync,
+    AsyncValue poopAsync,
+  ) async {
+    // Get active profile
+    final profile = await profileService.getActiveProfile();
+
+    // Get meals, reactions, and poop logs (use sync providers or handle async)
+    List todayMeals = [];
+    List recentReactions = [];
+    List recentPoopLogs = [];
+
+    // Check if providers are ready
+    if (mealAsync.value != null && profile != null) {
+      todayMeals = await mealAsync.value!.getTodayMeals(profile.id);
+    }
+    if (reactionAsync.value != null && profile != null) {
+      recentReactions = await reactionAsync.value!.getRecentReactions(profile.id, limit: 5);
+    }
+    if (poopAsync.value != null && profile != null) {
+      recentPoopLogs = await poopAsync.value!.getRecentPoopLogs(profile.id, limit: 5);
+    }
+
+    return {
+      'profile': profile,
+      'todayMeals': todayMeals,
+      'recentReactions': recentReactions,
+      'recentPoopLogs': recentPoopLogs,
+    };
   }
 
   Widget _buildDrawer(BuildContext context) {
@@ -99,8 +186,8 @@ class HomeScreen extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              color: const Color(0xFF4A90E2),
+            decoration: const BoxDecoration(
+              color: Color(0xFF4A90E2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +279,6 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildDateHeader() {
     final now = DateTime.now();
-    final weekday = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][now.weekday - 1];
     final month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][now.month - 1];
 
     return Row(
@@ -326,11 +412,6 @@ class HomeScreen extends StatelessWidget {
         severityLabel = 'Safe';
     }
 
-    final food = MockDataService.foods.firstWhere(
-      (f) => f.id == reaction.foodId,
-      orElse: () => MockDataService.foods[0],
-    );
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -351,7 +432,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '$severityLabel - ${food.name}',
+                  '$severityLabel - ${reaction.foodName ?? reaction.foodId}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -458,8 +539,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildStatsCard(dynamic profile) {
-    final foodsTried = MockDataService.foods.length;
-    final mealsLogged = MockDataService.mealLogs.length;
+    // Calculate stats based on actual data
+    // For now, use placeholder values
+    final foodsTried = 10; // This should be calculated from actual data
+    final mealsLogged = 20; // This should be calculated from actual data
 
     return Card(
       shape: RoundedRectangleBorder(

@@ -38,6 +38,24 @@ class FoodStats {
     if (worstReaction!.severity <= 2) return 'yellow';
     return 'red';
   }
+
+  FoodStats copyWith({
+    Food? food,
+    DateTime? firstTried,
+    DateTime? lastTried,
+    int? timesTried,
+    double? acceptanceRate,
+    Reaction? worstReaction,
+  }) {
+    return FoodStats(
+      food: food ?? this.food,
+      firstTried: firstTried ?? this.firstTried,
+      lastTried: lastTried ?? this.lastTried,
+      timesTried: timesTried ?? this.timesTried,
+      acceptanceRate: acceptanceRate ?? this.acceptanceRate,
+      worstReaction: worstReaction ?? this.worstReaction,
+    );
+  }
 }
 
 class FoodHistoryScreen extends ConsumerStatefulWidget {

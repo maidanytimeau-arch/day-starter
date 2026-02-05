@@ -479,6 +479,10 @@ class MockProfileService implements ProfileServiceInterface {
 class MockDataService {
   static List<Food> get foods => _mockFoods;
 
+  static List<Profile> get profiles => _mockProfiles;
+
+  static List<MealLog> get mealLogs => _mockMealLogs;
+
   static Profile getActiveProfile() {
     return _mockProfiles[0];
   }
