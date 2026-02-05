@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../screens/placeholder_screens.dart';
 import '../screens/log_reaction_screen.dart' as log_reaction;
+import '../screens/create_profile_screen.dart';
 
 class AppRoutes {
   static const String home = '/';
@@ -11,6 +12,7 @@ class AppRoutes {
   static const String poopLog = '/poop-log';
   static const String profiles = '/profiles';
   static const String settings = '/settings';
+  static const String createProfile = '/create-profile';
 }
 
 class AppNavigator {
@@ -30,6 +32,8 @@ class AppNavigator {
         return MaterialPageRoute(builder: (_) => const ProfilesScreen());
       case AppRoutes.settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      case AppRoutes.createProfile:
+        return MaterialPageRoute(builder: (_) => const CreateProfileScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
