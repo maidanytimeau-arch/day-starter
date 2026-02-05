@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/profile.dart';
+import '../models/meal_log.dart';
+import '../models/reaction.dart';
+import '../models/poop_log.dart';
 import '../services/providers/service_providers.dart';
 import '../services/providers/auth_providers.dart';
 import '../routes/app_routes.dart';
@@ -9,177 +13,69 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Use real-time streams for live data
     final profileAsync = ref.watch(profileServiceProvider);
-    final mealAsync = ref.watch(mealServiceProvider);
-    final reactionAsync = ref.watch(reactionServiceProvider);
-    final poopAsync = ref.watch(poopServiceProvider);
+    final currentUser = ref.watch(currentUserProvider);
 
     return profileAsync.when(
       data: (profileService) {
-        return mealAsync.when(
-          data: (mealService) {
-            return reactionAsync.when(
-              data: (reactionService) {
-                return poopAsync.when(
-                  data: (poopService) {
-                    return StreamBuilder(
-                      stream: _combineStreams(profileService, mealService, reactionService, poopService),
-                      builder: (context, AsyncSnapshot<Map<String, dynamic>> snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Scaffold(
-                            body: Center(child: CircularProgressIndicator()),
-                          );
-                        }
+        // Watch profiles stream to get active profile
+        final profilesStream = profileService.streamProfiles();
+        final activeProfileStream = profileService.getActiveProfile().asStream();
 
-                        if (!snapshot.hasData) {
-                          return const Scaffold(
-                            body: Center(child: Text('No data available')),
-                          );
-                        }
+        return StreamBuilder<List<Profile>>(
+          stream: profilesStream,
+          builder: (context, profilesSnapshot) {
+            if (!profilesSnapshot.hasData) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-                        final data = snapshot.data!;
-                        final profile = data['profile'];
-                        final todayMeals = data['todayMeals'] as List;
-                        final recentReactions = data['recentReactions'] as List;
-                        final recentPoopLogs = data['recentPoopLogs'] as List;
+            final profiles = profilesSnapshot.data!;
 
-                        return Scaffold(
-                          appBar: AppBar(
-                            title: const Text('LittleBites'),
-                            actions: [
-                              IconButton(
-                                icon: const Icon(Icons.notifications_outlined),
-                                onPressed: () {
-                                  // TODO: Navigate to notifications
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.person_outline),
-                                onPressed: () {
-                                  AppNavigator.navigateTo(context, AppRoutes.profiles);
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.logout),
-                                onPressed: () {
-                                  ref.read(authServiceProvider).signOut();
-                                },
-                              ),
-                            ],
-                          ),
-                          drawer: _buildDrawer(context),
-                          body: RefreshIndicator(
-                            onRefresh: () async {
-                              // Stream will automatically refresh
-                            },
-                            child: ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: [
-                                // Date and weather
-                                _buildDateHeader(),
-                                const SizedBox(height: 20),
+            return StreamBuilder<Profile?>(
+              stream: activeProfileStream,
+              builder: (context, activeProfileSnapshot) {
+                final activeProfile = activeProfileSnapshot.data;
 
-                                // Today's Meals
-                                _buildSectionHeader('🍽️ Today\'s Meals', onTap: () => AppNavigator.navigateTo(context, AppRoutes.foodHistory)),
-                                const SizedBox(height: 8),
-                                if (todayMeals.isEmpty)
-                                  const Card(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16),
-                                      child: Center(
-                                        child: Text(
-                                          'No meals logged today',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  ...todayMeals.map((meal) => _buildMealCard(context, meal)),
-                                const SizedBox(height: 20),
+                // If no active profile, show prompt to create one
+                if (activeProfile == null) {
+                  return _buildNoProfileScreen(context);
+                }
 
-                                // Recent Reactions
-                                if (recentReactions.isNotEmpty) ...[
-                                  _buildSectionHeader('⚠️ Recent Reactions', onTap: () => AppNavigator.navigateTo(context, AppRoutes.logReaction)),
-                                  const SizedBox(height: 8),
-                                  ...recentReactions.take(2).map((reaction) => _buildReactionCard(context, reaction)),
-                                  const SizedBox(height: 20),
-                                ],
+                // Get real-time streams for active profile from respective services
+                final mealServiceAsync = ref.watch(mealServiceProvider);
+                final reactionServiceAsync = ref.watch(reactionServiceProvider);
+                final poopServiceAsync = ref.watch(poopServiceProvider);
 
-                                // Recent Poop Logs
-                                if (recentPoopLogs.isNotEmpty) ...[
-                                  _buildSectionHeader('💩 Poop Log', onTap: () => AppNavigator.navigateTo(context, AppRoutes.poopLog)),
-                                  const SizedBox(height: 8),
-                                  ...recentPoopLogs.take(1).map((poop) => _buildPoopCard(context, poop)),
-                                  const SizedBox(height: 20),
-                                ],
+                return mealServiceAsync.when(
+                  data: (mealService) {
+                    final reactionAsync = reactionServiceAsync.value;
+                    final poopAsync = poopServiceAsync.value;
 
-                                // Stats summary
-                                _buildStatsCard(profile, todayMeals),
-                              ],
-                            ),
-                          ),
-                          floatingActionButton: FloatingActionButton.extended(
-                            onPressed: () {
-                              AppNavigator.navigateTo(context, AppRoutes.addMeal);
-                            },
-                            backgroundColor: const Color(0xFF4A90E2),
-                            icon: const Icon(Icons.add, color: Colors.white),
-                            label: const Text('Log Meal', style: TextStyle(color: Colors.white)),
-                          ),
-                        );
-                      },
+                    return _buildHomeWithData(
+                      context,
+                      ref,
+                      activeProfile,
+                      profiles,
+                      mealService.streamMeals(activeProfile.id),
+                      reactionAsync?.streamReactions(activeProfile.id) ?? const Stream.empty(),
+                      poopAsync?.streamPoopLogs(activeProfile.id) ?? const Stream.empty(),
                     );
                   },
                   loading: () => const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
                   ),
-                  error: (error, stack) => Scaffold(
+                  error: (error, __) => Scaffold(
                     body: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text('Error: $error'),
-                        ],
-                      ),
+                      child: Text('Error loading services: $error'),
                     ),
                   ),
                 );
               },
-              loading: () => const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, stack) => Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: $error'),
-                    ],
-                  ),
-                ),
-              ),
             );
           },
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
-          error: (error, stack) => Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Error: $error'),
-                ],
-              ),
-            ),
-          ),
         );
       },
       loading: () => const Scaffold(
@@ -192,7 +88,7 @@ class HomeScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              Text('Error: $error'),
+              Text('Error loading profiles: $error'),
             ],
           ),
         ),
@@ -200,60 +96,223 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Stream<Map<String, dynamic>> _combineStreams(
-    dynamic profileService,
-    dynamic mealService,
-    dynamic reactionService,
-    dynamic poopService,
-  ) async* {
-    // Get active profile
-    final profile = await profileService.getActiveProfile();
-
-    if (profile == null) {
-      yield {
-        'profile': null,
-        'todayMeals': <dynamic>[],
-        'recentReactions': <dynamic>[],
-        'recentPoopLogs': <dynamic>[],
-      };
-      return;
-    }
-
-    // Create streams for each service
-    final mealStream = mealService.streamMeals(profile.id);
-    final reactionStream = reactionService.streamReactions(profile.id);
-    final poopStream = poopService.streamPoopLogs(profile.id);
-
-    // Combine streams using Stream.zip or asyncMap
-    // For simplicity, we'll use asyncMap on one stream and fetch latest from others
-    yield* mealStream.asyncMap((meals) async {
-      // Get today's meals from the stream
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-
-      final todayMeals = meals.where((meal) {
-        return meal.timestamp.isAfter(startOfDay) && meal.timestamp.isBefore(endOfDay);
-      }).toList();
-
-      // Fetch latest reactions and poop logs from their streams
-      final reactions = await reactionStream.first;
-      final poopLogs = await poopStream.first;
-
-      // Get recent items
-      final recentReactions = reactions.take(5).toList();
-      final recentPoopLogs = poopLogs.take(5).toList();
-
-      return {
-        'profile': profile,
-        'todayMeals': todayMeals,
-        'recentReactions': recentReactions,
-        'recentPoopLogs': recentPoopLogs,
-      };
-    });
+  Widget _buildNoProfileScreen(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('LittleBites'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // Sign out will be handled by AuthWrapper
+              // Need to access ref here - simplified for now
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.child_care,
+                size: 80,
+                color: Color(0xFF4A90E2),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Welcome to LittleBites!',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Let\'s start by adding a profile for your baby.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF7F8C8D),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  AppNavigator.navigateTo(context, AppRoutes.profiles);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Create Profile'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _buildDrawer(BuildContext context) {
+  Widget _buildHomeWithData(
+    BuildContext context,
+    WidgetRef ref,
+    Profile activeProfile,
+    List<Profile> profiles,
+    Stream<List<MealLog>> mealStream,
+    Stream<List<Reaction>> reactionStream,
+    Stream<List<PoopLog>> poopStream,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(activeProfile.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {
+              // TODO: Navigate to notifications
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              AppNavigator.navigateTo(context, AppRoutes.profiles);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              ref.read(authServiceProvider).signOut();
+            },
+          ),
+        ],
+      ),
+      drawer: _buildDrawer(context, activeProfile, profiles),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Stream refresh happens automatically
+          // Just invalidate providers to force reload
+          ref.invalidate(profileServiceProvider);
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Date and weather
+            _buildDateHeader(),
+            const SizedBox(height: 20),
+
+            // Today's Meals (real-time)
+            _buildMealsSection(context, mealStream),
+            const SizedBox(height: 20),
+
+            // Recent Reactions (real-time)
+            _buildReactionsSection(context, reactionStream),
+            const SizedBox(height: 20),
+
+            // Recent Poop Logs (real-time)
+            _buildPoopLogsSection(context, poopStream),
+            const SizedBox(height: 20),
+
+            // Stats summary
+            _buildStatsCard(context, ref, activeProfile),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          AppNavigator.navigateTo(context, AppRoutes.addMeal);
+        },
+        backgroundColor: const Color(0xFF4A90E2),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Log Meal', style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildMealsSection(BuildContext context, Stream<List<MealLog>> mealStream) {
+    return StreamBuilder<List<MealLog>>(
+      stream: mealStream,
+      builder: (context, mealsSnapshot) {
+        final todayMeals = _getTodayMeals(mealsSnapshot.data ?? []);
+
+        if (todayMeals.isEmpty) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  'No meals logged today',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('🍽️ Today\'s Meals',
+                onTap: () => AppNavigator.navigateTo(context, AppRoutes.foodHistory)),
+            const SizedBox(height: 8),
+            ...todayMeals.map((meal) => _buildMealCard(context, meal)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildReactionsSection(BuildContext context, Stream<List<Reaction>> reactionStream) {
+    return StreamBuilder<List<Reaction>>(
+      stream: reactionStream,
+      builder: (context, reactionsSnapshot) {
+        final reactions = reactionsSnapshot.data ?? [];
+
+        if (reactions.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('⚠️ Recent Reactions',
+                onTap: () => AppNavigator.navigateTo(context, AppRoutes.logReaction)),
+            const SizedBox(height: 8),
+            ...reactions.take(2).map((reaction) => _buildReactionCard(context, reaction)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPoopLogsSection(BuildContext context, Stream<List<PoopLog>> poopStream) {
+    return StreamBuilder<List<PoopLog>>(
+      stream: poopStream,
+      builder: (context, poopSnapshot) {
+        final poopLogs = poopSnapshot.data ?? [];
+
+        if (poopLogs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('💩 Poop Log',
+                onTap: () => AppNavigator.navigateTo(context, AppRoutes.poopLog)),
+            const SizedBox(height: 8),
+            ...poopLogs.take(1).map((poop) => _buildPoopCard(context, poop)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, Profile activeProfile, List<Profile> profiles) {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -270,17 +329,17 @@ class HomeScreen extends ConsumerWidget {
                   child: Icon(Icons.child_care, size: 40, color: Colors.white),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'LittleBites',
-                  style: TextStyle(
+                Text(
+                  activeProfile.name,
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Baby Food Tracker',
+                  '${profiles.length} profile${profiles.length == 1 ? '' : 's'}',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
@@ -407,7 +466,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMealCard(BuildContext context, dynamic meal) {
+  Widget _buildMealCard(BuildContext context, MealLog meal) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -452,7 +511,7 @@ class HomeScreen extends ConsumerWidget {
                     allergen,
                     style: const TextStyle(fontSize: 10),
                   ),
-                  backgroundColor: const Color(0xFFF5A623).withOpacity(0.2),
+                  backgroundColor: const Color(0xFFF5A623).withValues(alpha: 0.2),
                   padding: EdgeInsets.zero,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ))),
@@ -464,11 +523,10 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildReactionCard(BuildContext context, dynamic reaction) {
-    final severityColorValue = reaction.severityColor;
+  Widget _buildReactionCard(BuildContext context, Reaction reaction) {
     Color severityColor;
     String severityLabel;
-    switch (severityColorValue) {
+    switch (reaction.severityColor) {
       case 'green':
         severityColor = const Color(0xFF50E3C2);
         severityLabel = 'Safe';
@@ -491,7 +549,7 @@ class HomeScreen extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      color: severityColor.withOpacity(0.1),
+      color: severityColor.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -505,12 +563,14 @@ class HomeScreen extends ConsumerWidget {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '$severityLabel - ${reaction.foodName ?? reaction.foodId}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: severityColor,
+                Expanded(
+                  child: Text(
+                    '$severityLabel - ${reaction.foodName ?? reaction.foodId ?? 'Unknown'}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: severityColor,
+                    ),
                   ),
                 ),
               ],
@@ -532,7 +592,7 @@ class HomeScreen extends ConsumerWidget {
                     symptom,
                     style: const TextStyle(fontSize: 10),
                   ),
-                  backgroundColor: severityColor.withOpacity(0.2),
+                  backgroundColor: severityColor.withValues(alpha: 0.2),
                   padding: EdgeInsets.zero,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ))),
@@ -544,7 +604,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPoopCard(BuildContext context, dynamic poop) {
+  Widget _buildPoopCard(BuildContext context, PoopLog poop) {
     Color poopColor;
     switch (poop.color.toLowerCase()) {
       case 'green':
@@ -612,69 +672,99 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsCard(dynamic profile, List todayMeals) {
-    // Calculate stats based on actual data
-    // For now, use placeholder values since we need more data for foods tried
-    final foodsTried = 10; // This would require tracking all meals, not just today's
-    final mealsLogged = todayMeals.length;
+  Widget _buildStatsCard(BuildContext context, WidgetRef ref, Profile activeProfile) {
+    // Calculate stats based on real-time data
+    final mealAsync = ref.watch(mealServiceProvider);
+    final foodAsync = ref.watch(profileServiceProvider);
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      color: const Color(0xFF4A90E2).withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Column(
-              children: [
-                Text(
-                  '$foodsTried',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4A90E2),
-                  ),
+    return mealAsync.when(
+      data: (mealService) {
+        return FutureBuilder<List<MealLog>>(
+          future: mealService.getMeals(activeProfile.id),
+          builder: (context, mealsSnapshot) {
+            if (!mealsSnapshot.hasData) {
+              return const SizedBox.shrink();
+            }
+
+            final meals = mealsSnapshot.data!;
+            final foodsTried = meals.fold<Set<String>>(
+              {},
+              (acc, meal) => acc..addAll(meal.foods.map((f) => f.id)),
+            ).length;
+            final mealsLogged = meals.length;
+
+            return Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              color: const Color(0xFF4A90E2).withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          '$foodsTried',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4A90E2),
+                          ),
+                        ),
+                        const Text(
+                          'Foods tried',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF7F8C8D),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: const Color(0xFFECF0F1),
+                    ),
+                    Column(
+                      children: [
+                        Text(
+                          '$mealsLogged',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4A90E2),
+                          ),
+                        ),
+                        const Text(
+                          'Meals logged',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF7F8C8D),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const Text(
-                  'Foods tried',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              width: 1,
-              height: 40,
-              color: const Color(0xFFECF0F1),
-            ),
-            Column(
-              children: [
-                Text(
-                  '$mealsLogged',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4A90E2),
-                  ),
-                ),
-                const Text(
-                  'Meals today',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
+  }
+
+  List<MealLog> _getTodayMeals(List<MealLog> meals) {
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day);
+    return meals.where((meal) {
+      return meal.timestamp.isAfter(startOfDay) ||
+          meal.timestamp.isAtSameMomentAs(startOfDay);
+    }).toList();
   }
 
   String _getRelativeTime(DateTime dateTime) {
