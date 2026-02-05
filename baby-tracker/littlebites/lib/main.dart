@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'routes/app_routes.dart';
 import 'screens/home_screen.dart';
@@ -20,8 +21,18 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Enable Firestore offline persistence
+    await FirebaseFirestore.instance.enablePersistence(
+      const PersistenceSettings(
+        synchronizeTabs: true,
+      ),
+    );
+
     print('✅ Firebase initialized successfully');
+    print('✅ Firestore offline persistence enabled');
   } catch (e) {
+    // Persistence already enabled or other non-fatal error
     print('⚠️ Firebase not configured yet (using mock data): $e');
   }
 
