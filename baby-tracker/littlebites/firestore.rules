@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User settings collection (stores active profile ID, preferences)
+    match /user_settings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Profiles collection
+    match /profiles/{profileId} {
+      // Users can read profiles they own (parentId == their userId)
+      allow read: if request.auth != null &&
+        resource.data.parentId == request.auth.uid;
+
+      // Users can create profiles only if they set parentId to their userId
+      allow create: if request.auth != null &&
+        request.resource.data.parentId == request.auth.uid;
+
+      // Users can update/delete their own profiles
+      allow update, delete: if request.auth != null &&
+        resource.data.parentId == request.auth.uid;
+    }
+
+    // Meal logs collection
+    match /meals/{mealId} {
+      // Users can read/write meals for profiles they own
+      // We check that the profileId matches a profile with parentId == userId
+      allow read, create, update, delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/profiles/$(resource.data.profileId)) &&
+        get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.parentId == request.auth.uid;
+    }
+
+    // Reactions collection
+    match /reactions/{reactionId} {
+      // Users can read/write reactions for profiles they own
+      allow read, create, update, delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/profiles/$(resource.data.profileId)) &&
+        get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.parentId == request.auth.uid;
+    }
+
+    // Poop logs collection
+    match /poop_logs/{poopLogId} {
+      // Users can read/write poop logs for profiles they own
+      allow read, create, update, delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/profiles/$(resource.data.profileId)) &&
+        get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.parentId == request.auth.uid;
+    }
+  }
+}

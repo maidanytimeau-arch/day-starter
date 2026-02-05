@@ -1,1 +1,6 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"littlebites-baby-tracker","configurations":{"web":"1:930700432812:web:4ace4d1a015b3f39f15609"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
