@@ -968,8 +968,10 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
       photoUrls: _photoUrls.isEmpty ? null : _photoUrls,
     );
 
-    // TODO: Save to backend/Firebase
-    // For now, just show success message
+    // Save to mock data service
+    MockDataService.addReaction(reaction);
+
+    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reaction saved successfully! Severity: ${reaction.severityText}'),

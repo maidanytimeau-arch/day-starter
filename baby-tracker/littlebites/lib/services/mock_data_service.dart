@@ -206,4 +206,48 @@ class MockDataService {
   static List<PoopLog> getRecentPoopLogs() {
     return poopLogs..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
+
+  // Add a new meal log
+  static void addMealLog(MealLog meal) {
+    final newMeal = MealLog(
+      id: meal.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : meal.id,
+      profileId: meal.profileId,
+      foods: meal.foods,
+      timestamp: meal.timestamp,
+      preparation: meal.preparation,
+      notes: meal.notes,
+      photoUrls: meal.photoUrls,
+    );
+    mealLogs.add(newMeal);
+  }
+
+  // Add a new reaction
+  static void addReaction(Reaction reaction) {
+    final newReaction = Reaction(
+      id: reaction.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : reaction.id,
+      profileId: reaction.profileId,
+      foodId: reaction.foodId,
+      severity: reaction.severity,
+      symptoms: reaction.symptoms,
+      startTime: reaction.startTime,
+      endTime: reaction.endTime,
+      notes: reaction.notes,
+      photoUrls: reaction.photoUrls,
+    );
+    reactions.add(newReaction);
+  }
+
+  // Add a new poop log
+  static void addPoopLog(PoopLog poopLog) {
+    final newPoopLog = PoopLog(
+      id: poopLog.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : poopLog.id,
+      profileId: poopLog.profileId,
+      timestamp: poopLog.timestamp,
+      color: poopLog.color,
+      consistency: poopLog.consistency,
+      notes: poopLog.notes,
+      photoUrls: poopLog.photoUrls,
+    );
+    poopLogs.add(newPoopLog);
+  }
 }
