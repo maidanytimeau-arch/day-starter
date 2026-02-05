@@ -2,6 +2,7 @@ class Reaction {
   final String id;
   final String profileId;
   final String? foodId;
+  final String? foodName; // Name of the food for display
   final int severity; // 1-5
   final List<String> symptoms;
   final DateTime startTime;
@@ -14,6 +15,7 @@ class Reaction {
     required this.id,
     required this.profileId,
     this.foodId,
+    this.foodName,
     required this.severity,
     required this.symptoms,
     required this.startTime,
@@ -69,6 +71,7 @@ class Reaction {
     String? id,
     String? profileId,
     String? foodId,
+    String? foodName,
     int? severity,
     List<String>? symptoms,
     DateTime? startTime,
@@ -81,6 +84,7 @@ class Reaction {
       id: id ?? this.id,
       profileId: profileId ?? this.profileId,
       foodId: foodId ?? this.foodId,
+      foodName: foodName ?? this.foodName,
       severity: severity ?? this.severity,
       symptoms: symptoms ?? this.symptoms,
       startTime: startTime ?? this.startTime,
