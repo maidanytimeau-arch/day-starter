@@ -97,6 +97,31 @@ class FirebaseProfileService implements ProfileServiceInterface {
   }
 
   @override
+  Stream<Profile?> streamActiveProfile() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      return Stream.error(Exception('User not authenticated'));
+    }
+
+    // Stream the user settings document to get the active profile ID
+    return _firestore
+        .collection(_userSettingsCollection)
+        .doc(userId)
+        .snapshots()
+        .asyncMap((settingsDoc) async {
+      if (!settingsDoc.exists) return null;
+
+      final data = settingsDoc.data() as Map<String, dynamic>;
+      final activeProfileId = data['activeProfileId'] as String?;
+
+      if (activeProfileId == null) return null;
+
+      // Fetch the actual profile
+      return await getProfileById(activeProfileId);
+    });
+  }
+
+  @override
   Future<void> setActiveProfile(String profileId) async {
     try {
       final userId = _auth.currentUser?.uid;

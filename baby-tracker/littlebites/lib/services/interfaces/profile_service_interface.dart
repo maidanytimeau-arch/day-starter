@@ -10,6 +10,9 @@ abstract class ProfileServiceInterface {
   // Get active profile
   Future<Profile?> getActiveProfile();
 
+  // Stream of active profile (real-time updates)
+  Stream<Profile?> streamActiveProfile();
+
   // Set active profile
   Future<void> setActiveProfile(String profileId);
 

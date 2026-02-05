@@ -426,6 +426,12 @@ class MockProfileService implements ProfileServiceInterface {
   }
 
   @override
+  Stream<Profile?> streamActiveProfile() {
+    // For mock, just return a stream that emits once
+    return Stream.fromFuture(getActiveProfile());
+  }
+
+  @override
   Future<void> setActiveProfile(String profileId) async {
     _activeProfileId = profileId;
   }
