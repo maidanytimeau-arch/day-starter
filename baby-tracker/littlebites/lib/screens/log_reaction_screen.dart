@@ -1,40 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/profile.dart';
 import '../models/reaction.dart';
 import '../models/food.dart';
+import '../services/providers/service_providers.dart';
 import '../services/mock_data_service.dart';
 
-class LogReactionScreen extends StatefulWidget {
+class LogReactionScreen extends ConsumerStatefulWidget {
   const LogReactionScreen({super.key});
 
   @override
-  State<LogReactionScreen> createState() => _LogReactionScreenState();
+  ConsumerState<LogReactionScreen> createState() => _LogReactionScreenState();
 }
 
-class _LogReactionScreenState extends State<LogReactionScreen> {
+class _LogReactionScreenState extends ConsumerState<LogReactionScreen> {
   // Selected child profile
   Profile? _selectedProfile;
-  
+
   // Selected food (optional)
   Food? _selectedFood;
-  
+
   // Severity level (1-5)
   int _severity = 3;
-  
+
   // Selected symptoms
   final List<String> _selectedSymptoms = [];
   bool _hasOtherSymptom = false;
   final TextEditingController _otherSymptomController = TextEditingController();
-  
+
   // Photo upload (placeholder - 0-3 photos)
   final List<String> _photoUrls = [];
-  
+
   // Time pickers
   DateTime _startTime = DateTime.now();
   DateTime? _endTime;
-  
+
   // Notes
   final TextEditingController _notesController = TextEditingController();
+
+  // Loading state
+  bool _isSaving = false;
 
   // Available symptoms
   static const List<String> _availableSymptoms = [
@@ -49,7 +54,7 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedProfile = MockDataService.getActiveProfile();
+    _loadActiveProfile();
   }
 
   @override
@@ -57,6 +62,19 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
     _otherSymptomController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadActiveProfile() async {
+    final profileServiceAsync = ref.read(profileServiceProvider);
+    final profileService = profileServiceAsync.value;
+    if (profileService != null) {
+      final profile = await profileService.getActiveProfile();
+      if (mounted) {
+        setState(() {
+          _selectedProfile = profile;
+        });
+      }
+    }
   }
 
   @override
@@ -77,107 +95,101 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Child selector
-            _buildChildSelector(),
-            const SizedBox(height: 24),
+      body: _isSaving
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Child selector
+                  _buildChildSelector(),
+                  const SizedBox(height: 24),
 
-            // Food selector (optional)
-            _buildFoodSelector(),
-            const SizedBox(height: 24),
+                  // Food selector (optional)
+                  _buildFoodSelector(),
+                  const SizedBox(height: 24),
 
-            // Severity slider
-            _buildSeveritySection(severityColor),
-            const SizedBox(height: 24),
+                  // Severity slider
+                  _buildSeveritySection(severityColor),
+                  const SizedBox(height: 24),
 
-            // Symptoms checklist
-            _buildSymptomsSection(severityColor),
-            const SizedBox(height: 24),
+                  // Symptoms checklist
+                  _buildSymptomsSection(severityColor),
+                  const SizedBox(height: 24),
 
-            // Photo upload placeholder
-            _buildPhotoUpload(),
-            const SizedBox(height: 24),
+                  // Timing
+                  _buildTimingSection(),
+                  const SizedBox(height: 24),
 
-            // Time pickers
-            _buildTimePickers(),
-            const SizedBox(height: 24),
+                  // Photo upload
+                  _buildPhotoSection(),
+                  const SizedBox(height: 24),
 
-            // Notes field
-            _buildNotesField(),
-            const SizedBox(height: 32),
+                  // Notes
+                  _buildNotesSection(),
+                  const SizedBox(height: 32),
 
-            // Save and Cancel buttons
-            _buildActionButtons(),
-            
-            const SizedBox(height: 16),
-
-            // Medical disclaimer
-            _buildMedicalDisclaimer(),
-          ],
-        ),
-      ),
+                  // Save button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveReaction,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: severityColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Save Reaction', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
   Widget _buildChildSelector() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.child_care,
-              size: 32,
-              color: Color(0xFF4A90E2),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Profile>(
-                  value: _selectedProfile,
-                  isExpanded: true,
-                  items: MockDataService.profiles.map((profile) {
-                    return DropdownMenuItem<Profile>(
-                      value: profile,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            profile.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF2C3E50),
-                            ),
-                          ),
-                          Text(
-                            profile.ageDisplay,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF7F8C8D),
-                            ),
-                          ),
-                        ],
+      child: InkWell(
+        onTap: _showChildSelectorDialog,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.child_care, color: Color(0xFF4A90E2)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedProfile?.name ?? 'No child selected',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2C3E50),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (profile) {
-                    setState(() {
-                      _selectedProfile = profile;
-                    });
-                  },
+                    ),
+                    Text(
+                      _selectedProfile?.ageDisplay ?? '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
@@ -185,9 +197,6 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
 
   Widget _buildFoodSelector() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -195,78 +204,38 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.restaurant_menu,
-                  color: Color(0xFF4A90E2),
-                ),
-                const SizedBox(width: 8),
+                const Icon(Icons.restaurant, color: Color(0xFF4A90E2)),
+                const SizedBox(width: 12),
                 const Text(
-                  'Suspected Food',
+                  'Food (Optional)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF2C3E50),
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  'Optional',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
-            InputDecorator(
+            DropdownButtonFormField<Food>(
               decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFECF0F1)),
-                ),
+                hintText: 'Select food',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: const Color(0xFFF8F9FA),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                fillColor: Colors.grey[50],
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Food>(
-                  value: _selectedFood,
-                  hint: const Text('Tap to select or skip'),
-                  isExpanded: true,
-                  items: MockDataService.foods.map((food) {
-                    return DropdownMenuItem<Food>(
-                      value: food,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              food.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF2C3E50),
-                              ),
-                            ),
-                          ),
-                          if (food.hasAllergens) ...[
-                            const SizedBox(width: 8),
-                            Icon(
-                              Icons.warning_amber,
-                              size: 16,
-                              color: Colors.orange[700],
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (food) {
-                    setState(() {
-                      _selectedFood = food;
-                    });
-                  },
-                ),
-              ),
+              items: MockDataService.foods.map((food) {
+                return DropdownMenuItem(
+                  value: food,
+                  child: Text(food.name),
+                );
+              }).toList(),
+              value: _selectedFood,
+              onChanged: (value) {
+                setState(() {
+                  _selectedFood = value;
+                });
+              },
             ),
           ],
         ),
@@ -276,9 +245,7 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
 
   Widget _buildSeveritySection(Color severityColor) {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      color: severityColor.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -286,11 +253,8 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.warning_amber_outlined,
-                  color: severityColor,
-                ),
-                const SizedBox(width: 8),
+                Icon(Icons.warning_amber_outlined, color: severityColor),
+                const SizedBox(width: 12),
                 const Text(
                   'Severity',
                   style: TextStyle(
@@ -301,103 +265,41 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Severity slider
+            const SizedBox(height: 16),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: severityColor,
+                thumbColor: severityColor,
+                inactiveTrackColor: severityColor.withValues(alpha: 0.3),
+              ),
+              child: Slider(
+                value: _severity.toDouble(),
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: _getSeverityLabel(_severity),
+                onChanged: (value) {
+                  setState(() {
+                    _severity = value.toInt();
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(5, (index) {
-                final level = index + 1;
-                final isSelected = level == _severity;
-                final levelColor = _getSeverityColor(level);
-
-                return Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _severity = level;
-                        });
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: isSelected ? levelColor : Colors.grey[300],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: levelColor,
-                            width: isSelected ? 3 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            level.toString(),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Connector line (except for last)
-                    if (index < 4)
-                      Container(
-                        width: 40,
-                        height: 2,
-                        color: isSelected && level < _severity ? levelColor : Colors.grey[300],
-                      ),
-                  ],
+                final severity = index + 1;
+                return Text(
+                  _getSeverityLabel(severity),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: _severity == severity ? FontWeight.bold : FontWeight.normal,
+                    color: severityColor,
+                  ),
                 );
               }),
             ),
-
-            const SizedBox(height: 20),
-
-            // Severity labels
-            ...List.generate(5, (index) {
-              final level = index + 1;
-              final levelColor = _getSeverityColor(level);
-              final label = _getSeverityLabel(level);
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: levelColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          level.toString(),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _severity == level ? levelColor : Colors.grey[700],
-                        fontWeight: _severity == level ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
           ],
         ),
       ),
@@ -406,9 +308,6 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
 
   Widget _buildSymptomsSection(Color severityColor) {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -416,11 +315,8 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.medical_services_outlined,
-                  color: severityColor,
-                ),
-                const SizedBox(width: 8),
+                const Icon(Icons.medical_services, color: Color(0xFF4A90E2)),
+                const SizedBox(width: 12),
                 const Text(
                   'Symptoms',
                   style: TextStyle(
@@ -432,83 +328,44 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Symptom checkboxes
-            ..._availableSymptoms.map((symptom) {
-              return CheckboxListTile(
-                value: _selectedSymptoms.contains(symptom),
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedSymptoms.add(symptom);
-                    } else {
-                      _selectedSymptoms.remove(symptom);
-                    }
-                  });
-                },
-                title: Text(
-                  symptom,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF2C3E50),
-                  ),
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                activeColor: severityColor,
-              );
-            }),
-
-            // Other symptom
+            ..._availableSymptoms.map((symptom) => CheckboxListTile(
+                  title: Text(symptom),
+                  value: _selectedSymptoms.contains(symptom),
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedSymptoms.add(symptom);
+                      } else {
+                        _selectedSymptoms.remove(symptom);
+                      }
+                    });
+                  },
+                )),
             CheckboxListTile(
-              value: _hasOtherSymptom,
+              title: TextField(
+                controller: _otherSymptomController,
+                decoration: const InputDecoration(
+                  hintText: 'Other symptom',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              value: _hasOtherSymptom && _otherSymptomController.text.isNotEmpty,
               onChanged: (value) {
                 setState(() {
                   _hasOtherSymptom = value ?? false;
-                  if (!_hasOtherSymptom) {
-                    _otherSymptomController.clear();
-                  }
                 });
               },
-              title: const Text(
-                'Other...',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF2C3E50),
-                ),
-              ),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              activeColor: severityColor,
             ),
-
-            if (_hasOtherSymptom)
-              Padding(
-                padding: const EdgeInsets.only(left: 44, top: 8),
-                child: TextField(
-                  controller: _otherSymptomController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter other symptom...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFECF0F1)),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FA),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPhotoUpload() {
+  Widget _buildTimingSection() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -516,164 +373,165 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.photo_camera_outlined,
-                  color: Color(0xFF4A90E2),
-                ),
-                const SizedBox(width: 8),
+                const Icon(Icons.access_time, color: Color(0xFF4A90E2)),
+                const SizedBox(width: 12),
                 const Text(
-                  'Add Photos',
+                  'Timing',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF2C3E50),
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  '${_photoUrls.length}/3',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7F8C8D),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Start time
+            ListTile(
+              leading: const Icon(Icons.play_circle_outline),
+              title: const Text('Start Time'),
+              subtitle: Text('${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.fromDateTime(_startTime),
+                );
+                if (time != null && mounted) {
+                  setState(() {
+                    _startTime = DateTime(
+                      _startTime.year,
+                      _startTime.month,
+                      _startTime.day,
+                      time!.hour,
+                      time!.minute,
+                    );
+                  });
+                }
+              },
+            ),
+            const Divider(),
+            // End time (optional)
+            ListTile(
+              leading: const Icon(Icons.stop_circle_outlined),
+              title: const Text('End Time (Optional)'),
+              subtitle: Text(_endTime != null
+                  ? '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}'
+                  : 'Still ongoing'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: _endTime != null
+                      ? TimeOfDay.fromDateTime(_endTime!)
+                      : TimeOfDay.now(),
+                );
+                if (time != null && mounted) {
+                  setState(() {
+                    _endTime = DateTime(
+                      _startTime.year,
+                      _startTime.month,
+                      _startTime.day,
+                      time!.hour,
+                      time!.minute,
+                    );
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.camera_alt, color: Color(0xFF4A90E2)),
+                const SizedBox(width: 12),
+                const Text(
+                  'Photos (Optional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2C3E50),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-
-            // Photo grid (placeholder)
-            if (_photoUrls.isEmpty)
-              InkWell(
-                onTap: () {
-                  // TODO: Implement photo upload
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Photo upload coming soon!'),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFECF0F1),
-                      style: BorderStyle.solid,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+            Row(
+              children: List.generate(3, (index) {
+                if (index < _photoUrls.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Stack(
                       children: [
-                        Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 48,
-                          color: Color(0xFF7F8C8D),
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.image),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Tap to add photos',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF7F8C8D),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                _photoUrls.removeAt(index);
+                              });
+                            },
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              )
-            else
-              SizedBox(
-                height: 120,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _photoUrls.length + 1,
-                  separatorBuilder: (context, index) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    if (index < _photoUrls.length) {
-                      return Stack(
-                        children: [
-                          Container(
-                            width: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.grey[300],
-                            ),
-                            child: const Icon(
-                              Icons.image,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _photoUrls.removeAt(index);
-                                });
-                              },
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 16,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    } else if (_photoUrls.length < 3) {
-                      return InkWell(
-                        onTap: () {
-                          // TODO: Implement photo upload
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Photo upload coming soon!'),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFFECF0F1),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            size: 32,
-                            color: Color(0xFF7F8C8D),
-                          ),
+                  );
+                } else {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: InkWell(
+                      onTap: () {
+                        // TODO: Implement photo picker
+                        setState(() {
+                          _photoUrls.add('placeholder_$index');
+                        });
+                      },
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[400]!),
                         ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ),
+                        child: const Icon(Icons.add_photo_alternate),
+                      ),
+                    ),
+                  );
+                }
+              }),
+            ),
+            Text('${_photoUrls.length}/3 photos', style: const TextStyle(color: Colors.grey)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimePickers() {
+  Widget _buildNotesSection() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -681,139 +539,8 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.access_time,
-                  color: Color(0xFF4A90E2),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Time',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2C3E50),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Start time
-            InkWell(
-              onTap: () => _selectTime(context, isStartTime: true),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFECF0F1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.play_arrow,
-                      color: Color(0xFF50E3C2),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Started:',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF7F8C8D),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      _formatTime(_startTime),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF2C3E50),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Color(0xFF7F8C8D),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // End time
-            InkWell(
-              onTap: () => _selectTime(context, isStartTime: false),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFECF0F1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.stop,
-                      color: Color(0xFFE74C3C),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Ended:',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF7F8C8D),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      _endTime != null ? _formatTime(_endTime!) : 'Ongoing',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF2C3E50),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Color(0xFF7F8C8D),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotesField() {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.note_outlined,
-                  color: Color(0xFF4A90E2),
-                ),
-                const SizedBox(width: 8),
+                const Icon(Icons.note, color: Color(0xFF4A90E2)),
+                const SizedBox(width: 12),
                 const Text(
                   'Notes',
                   style: TextStyle(
@@ -824,18 +551,15 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextField(
               controller: _notesController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Add any additional notes...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFECF0F1)),
-                ),
+                hintText: 'Add notes (optional)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: const Color(0xFFF8F9FA),
+                fillColor: Colors.grey[200],
               ),
             ),
           ],
@@ -844,101 +568,18 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              side: const BorderSide(
-                color: Color(0xFF4A90E2),
-              ),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF4A90E2),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+  Future<void> _saveReaction() async {
+    // Validate profile
+    if (_selectedProfile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please create a profile first'),
+          backgroundColor: Color(0xFFE74C3C),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _saveReaction,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A90E2),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMedicalDisclaimer() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        '⚠️ This app does not replace medical advice. If your child is having a severe reaction, seek emergency medical help immediately.',
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.orange[700],
-          fontStyle: FontStyle.italic,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
-  Future<void> _selectTime(BuildContext context, {required bool isStartTime}) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(isStartTime ? _startTime : (_endTime ?? _startTime)),
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStartTime) {
-          _startTime = DateTime(
-            _startTime.year,
-            _startTime.month,
-            _startTime.day,
-            picked.hour,
-            picked.minute,
-          );
-        } else {
-          _endTime = DateTime(
-            _startTime.year,
-            _startTime.month,
-            _startTime.day,
-            picked.hour,
-            picked.minute,
-          );
-        }
-      });
+      );
+      return;
     }
-  }
 
-  void _saveReaction() {
     // Validate at least one symptom is selected
     final symptoms = [..._selectedSymptoms];
     if (_hasOtherSymptom && _otherSymptomController.text.isNotEmpty) {
@@ -955,32 +596,97 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
       return;
     }
 
-    // Create the reaction object
-    final reaction = Reaction(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      profileId: _selectedProfile?.id ?? '',
-      foodId: _selectedFood?.id,
-      severity: _severity,
-      symptoms: symptoms,
-      startTime: _startTime,
-      endTime: _endTime,
-      notes: _notesController.text.isEmpty ? null : _notesController.text,
-      photoUrls: _photoUrls.isEmpty ? null : _photoUrls,
-    );
+    setState(() {
+      _isSaving = true;
+    });
 
-    // Save to mock data service
-    MockDataService.addReaction(reaction);
+    try {
+      // Create reaction object
+      final reaction = Reaction(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        profileId: _selectedProfile!.id,
+        foodId: _selectedFood?.id,
+        foodName: _selectedFood?.name,
+        severity: _severity,
+        symptoms: symptoms,
+        startTime: _startTime,
+        endTime: _endTime,
+        notes: _notesController.text.isEmpty ? null : _notesController.text,
+        photoUrls: _photoUrls.isEmpty ? null : _photoUrls,
+      );
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Reaction saved successfully! Severity: ${reaction.severityText}'),
-        backgroundColor: _getSeverityColor(_severity),
+      // Save to Firebase
+      final reactionServiceAsync = ref.read(reactionServiceProvider);
+      final reactionService = reactionServiceAsync.value;
+      if (reactionService != null) {
+        await reactionService.addReaction(reaction);
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Reaction saved successfully! Severity: ${reaction.severityText}'),
+              backgroundColor: _getSeverityColor(_severity),
+            ),
+          );
+
+          // Navigate back
+          Navigator.pop(context, reaction);
+        }
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save reaction: $e'),
+            backgroundColor: Color(0xFFE74C3C),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showChildSelectorDialog() async {
+    // TODO: Implement child selector dialog with real profiles
+    // For now, use mock data
+    final profiles = MockDataService.profiles;
+    if (!mounted) return;
+
+    final selected = await showDialog<Profile>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Child'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: profiles.map((profile) {
+            return ListTile(
+              leading: CircleAvatar(
+                child: Text(profile.name[0]),
+              ),
+              title: Text(profile.name),
+              subtitle: Text(profile.ageDisplay),
+              trailing: _selectedProfile?.id == profile.id ? const Icon(Icons.check) : null,
+              onTap: () {
+                Navigator.pop(context, profile);
+              },
+            );
+          }).toList(),
+        ),
       ),
     );
 
-    // Navigate back
-    Navigator.pop(context, reaction);
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedProfile = selected;
+      });
+    }
   }
 
   Color _getSeverityColor(int severity) {
@@ -992,21 +698,17 @@ class _LogReactionScreenState extends State<LogReactionScreen> {
   String _getSeverityLabel(int severity) {
     switch (severity) {
       case 1:
-        return 'Very mild (rash)';
+        return 'Very Mild';
       case 2:
-        return 'Mild (slight swelling)';
+        return 'Mild';
       case 3:
-        return 'Moderate (hives)';
+        return 'Moderate';
       case 4:
-        return 'Severe (vomiting)';
+        return 'Severe';
       case 5:
-        return 'Very severe (anaphylaxis)';
+        return 'Very Severe';
       default:
-        return '';
+        return 'Unknown';
     }
-  }
-
-  String _formatTime(DateTime dateTime) {
-    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }
