@@ -210,24 +210,20 @@ class _FoodHistoryScreenState extends ConsumerState<FoodHistoryScreen> {
             data: (reactionSvc) {
               return profileService.when(
                 data: (profileSvc) {
-                  return FutureBuilder(
-                    future: Future.wait([
-                      profileSvc.getActiveProfile(),
-                      mealSvc.getMeals('profile_1'), // TODO: Get from active profile
-                      reactionSvc.getReactions('profile_1'), // TODO: Get from active profile
-                    ]),
-                    builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+                  return StreamBuilder(
+                    stream: _combineDataStreams(profileSvc, mealSvc, reactionSvc),
+                    builder: (context, AsyncSnapshot<Map<String, dynamic>> snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (!snapshot.hasData || snapshot.data == null) {
+                      if (!snapshot.hasData) {
                         return const Center(child: Text('No data available'));
                       }
 
                       final foods = MockDataService.foods;
-                      final mealLogs = snapshot.data![1] as List;
-                      final reactions = snapshot.data![2] as List;
+                      final mealLogs = snapshot.data!['mealLogs'] as List;
+                      final reactions = snapshot.data!['reactions'] as List;
 
                       final allStats = _computeFoodStats(foods, mealLogs, reactions);
                       final filteredStats = _filterAndSortStats(allStats);
@@ -379,6 +375,39 @@ class _FoodHistoryScreenState extends ConsumerState<FoodHistoryScreen> {
         ),
       ),
     );
+  }
+
+  Stream<Map<String, dynamic>> _combineDataStreams(
+    dynamic profileSvc,
+    dynamic mealSvc,
+    dynamic reactionSvc,
+  ) async* {
+    // Get active profile
+    final profile = await profileSvc.getActiveProfile();
+
+    if (profile == null) {
+      yield {
+        'profile': null,
+        'mealLogs': <dynamic>[],
+        'reactions': <dynamic>[],
+      };
+      return;
+    }
+
+    // Create streams
+    final mealStream = mealSvc.streamMeals(profile.id);
+    final reactionStream = reactionSvc.streamReactions(profile.id);
+
+    // Combine streams - use asyncMap on meal stream and fetch reactions
+    yield* mealStream.asyncMap((meals) async {
+      final reactions = await reactionStream.first;
+
+      return {
+        'profile': profile,
+        'mealLogs': meals,
+        'reactions': reactions,
+      };
+    });
   }
 
   Widget _buildFoodCard(BuildContext context, FoodStats stat) {
