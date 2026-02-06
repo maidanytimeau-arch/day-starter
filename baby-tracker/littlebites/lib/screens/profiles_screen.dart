@@ -1,86 +1,184 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/profile.dart';
+import '../models/meal_log.dart';
+import '../services/providers/service_providers.dart';
 
-class ProfilesScreen extends StatefulWidget {
+class ProfilesScreen extends ConsumerStatefulWidget {
   const ProfilesScreen({super.key});
 
   @override
-  State<ProfilesScreen> createState() => _ProfilesScreenState();
+  ConsumerState<ProfilesScreen> createState() => _ProfilesScreenState();
 }
 
-class _ProfilesScreenState extends State<ProfilesScreen> {
-  String _activeProfileId = MockDataService.profiles[0].id;
+class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
+  String? _activeProfileId;
 
   @override
   Widget build(BuildContext context) {
-    final activeProfile = MockDataService.profiles.firstWhere(
-      (p) => p.id == _activeProfileId,
-      orElse: () => MockDataService.profiles[0],
-    );
+    final profileServiceAsync = ref.watch(profileServiceProvider);
+    final mealServiceAsync = ref.watch(mealServiceProvider);
 
-    // Calculate foods tried for active profile
-    final foodsTried = MockDataService.mealLogs
-        .where((meal) => meal.profileId == _activeProfileId)
-        .fold<Set<String>>(
-          <String>{},
-          (Set<String> acc, meal) => acc..addAll(meal.foods.map((f) => f.id)),
-        ).length;
+    return profileServiceAsync.when(
+      data: (profileService) {
+        return mealServiceAsync.when(
+          data: (mealService) {
+            return StreamBuilder<List<Profile>>(
+              stream: profileService.streamProfiles(),
+              builder: (context, profilesSnapshot) {
+                if (!profilesSnapshot.hasData) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
 
-    // Get all meals for this profile to calculate insights
-    final profileMeals = MockDataService.mealLogs
-        .where((meal) => meal.profileId == _activeProfileId)
-        .toList();
+                final profiles = profilesSnapshot.data!;
 
-    // Calculate insights
-    final insights = _calculateInsights(profileMeals);
+                // Set initial active profile if not set
+                if (_activeProfileId == null && profiles.isNotEmpty) {
+                  _activeProfileId = profiles[0].id;
+                }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profiles'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              // TODO: Navigate to settings
-            },
+                // Watch active profile stream
+                return StreamBuilder<Profile?>(
+                  stream: profileService.streamActiveProfile(),
+                  builder: (context, activeProfileSnapshot) {
+                    final activeProfile = activeProfileSnapshot.data ??
+                        profiles.firstWhere(
+                          (p) => p.id == _activeProfileId,
+                          orElse: () => profiles.isNotEmpty ? profiles[0] : Profile(
+                            id: '',
+                            name: 'No Profile',
+                            birthDate: DateTime.now(),
+                            familyId: '',
+                            parentId: '',
+                            createdAt: DateTime.now(),
+                          ),
+                        );
+
+                    if (activeProfile.id.isEmpty) {
+                      return Scaffold(
+                        appBar: AppBar(
+                          title: const Text('Profiles'),
+                        ),
+                        body: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.child_care,
+                                size: 64,
+                                color: Color(0xFF4A90E2),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No profiles yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Color(0xFF7F8C8D),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/create-profile');
+                                },
+                                child: const Text('Create Profile'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    // Stream meals for insights
+                    return StreamBuilder<List<MealLog>>(
+                      stream: mealService.streamMeals(activeProfile.id),
+                      builder: (context, mealsSnapshot) {
+                        final meals = mealsSnapshot.data ?? [];
+
+                        // Calculate foods tried for active profile
+                        final foodsTried = meals
+                            .fold<Set<String>>(
+                              <String>{},
+                              (Set<String> acc, meal) => acc..addAll(meal.foods.map((f) => f.id)),
+                            ).length;
+
+                        // Calculate insights
+                        final insights = _calculateInsights(meals);
+
+                        return Scaffold(
+                          appBar: AppBar(
+                            title: const Text('Profiles'),
+                            actions: [
+                              IconButton(
+                                icon: const Icon(Icons.settings_outlined),
+                                onPressed: () {
+                                  // TODO: Navigate to settings
+                                },
+                              ),
+                            ],
+                          ),
+                          body: ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              // Child Selector
+                              _buildChildSelector(activeProfile, profileService),
+                              const SizedBox(height: 24),
+
+                              // Current Child Card
+                              _buildCurrentChildCard(activeProfile, foodsTried),
+                              const SizedBox(height: 24),
+
+                              // Children Section
+                              _buildChildrenSection(profiles, activeProfile, profileService),
+                              const SizedBox(height: 24),
+
+                              // Family/Caregivers Section
+                              _buildFamilySection(),
+                              const SizedBox(height: 24),
+
+                              // Insights Section
+                              _buildInsightsSection(insights),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+          loading: () => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           ),
-        ],
+          error: (error, __) => Scaffold(
+            body: Center(
+              child: Text('Error loading services: $error'),
+            ),
+          ),
+        );
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Child Selector
-          _buildChildSelector(activeProfile),
-          const SizedBox(height: 24),
-
-          // Current Child Card
-          _buildCurrentChildCard(activeProfile, foodsTried),
-          const SizedBox(height: 24),
-
-          // Children Section
-          _buildChildrenSection(),
-          const SizedBox(height: 24),
-
-          // Family/Caregivers Section
-          _buildFamilySection(),
-          const SizedBox(height: 24),
-
-          // Insights Section
-          _buildInsightsSection(insights),
-        ],
+      error: (error, __) => Scaffold(
+        body: Center(
+          child: Text('Error loading profiles: $error'),
+        ),
       ),
     );
   }
 
-  Widget _buildChildSelector(Profile activeProfile) {
+  Widget _buildChildSelector(Profile activeProfile, dynamic profileService) {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       color: const Color(0xFF4A90E2).withOpacity(0.1),
       child: InkWell(
-        onTap: () => _showChildSelectorDialog(),
+        onTap: () => _showChildSelectorDialog(profileService),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -253,7 +351,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
     );
   }
 
-  Widget _buildChildrenSection() {
+  Widget _buildChildrenSection(List<Profile> profiles, Profile activeProfile, dynamic profileService) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -272,8 +370,8 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
           ),
           child: Column(
             children: [
-              ...MockDataService.profiles.map((profile) => InkWell(
-                onTap: () => _switchProfile(profile.id),
+              ...profiles.map((profile) => InkWell(
+                onTap: () => _switchProfile(profile.id, profileService),
                 borderRadius: BorderRadius.circular(16),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -333,10 +431,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
               const Divider(height: 1),
               InkWell(
                 onTap: () {
-                  // TODO: Navigate to Add Child screen
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Add child - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/create-profile');
                 },
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
@@ -674,7 +769,7 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
     );
   }
 
-  Map<String, String> _calculateInsights(List<dynamic> meals) {
+  Map<String, String> _calculateInsights(List<MealLog> meals) {
     if (meals.isEmpty) {
       return {
         'mostLoved': 'Not enough data',
@@ -737,92 +832,114 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
     return true;
   }
 
-  void _switchProfile(String profileId) {
+  void _switchProfile(String profileId, dynamic profileService) async {
     setState(() {
       _activeProfileId = profileId;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Switched to ${MockDataService.profiles.firstWhere(
-          (p) => p.id == profileId,
-          orElse: () => MockDataService.profiles[0],
-        ).name}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+
+    // Set active profile in Firebase
+    try {
+      await profileService.setActiveProfile(profileId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched to profile'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error switching profile: $e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
-  void _showChildSelectorDialog() {
+  void _showChildSelectorDialog(dynamic profileService) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Child'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: MockDataService.profiles.map((profile) {
-              final isActive = profile.id == _activeProfileId;
-              return InkWell(
-                onTap: () {
-                  _switchProfile(profile.id);
-                  Navigator.of(context).pop();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFF4A90E2).withOpacity(0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: isActive
-                            ? const Color(0xFF4A90E2)
-                            : const Color(0xFFECF0F1),
-                        child: Icon(
-                          Icons.child_care,
-                          color: isActive ? Colors.white : const Color(0xFF7F8C8D),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          profile.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                            color: const Color(0xFF2C3E50),
-                          ),
-                        ),
-                      ),
-                      if (isActive)
-                        const Icon(
-                          Icons.check_circle,
-                          color: Color(0xFF4A90E2),
-                        ),
-                    ],
-                  ),
-                ),
+        return StreamBuilder<List<Profile>>(
+          stream: profileService.streamProfiles(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const AlertDialog(
+                content: Center(child: CircularProgressIndicator()),
               );
-            }).toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
+            }
+
+            final profiles = snapshot.data!;
+
+            return AlertDialog(
+              title: const Text('Select Child'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: profiles.map((profile) {
+                  final isActive = profile.id == _activeProfileId;
+                  return InkWell(
+                    onTap: () {
+                      _switchProfile(profile.id, profileService);
+                      Navigator.of(context).pop();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF4A90E2).withOpacity(0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: isActive
+                                ? const Color(0xFF4A90E2)
+                                : const Color(0xFFECF0F1),
+                            child: Icon(
+                              Icons.child_care,
+                              color: isActive ? Colors.white : const Color(0xFF7F8C8D),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              profile.name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                color: const Color(0xFF2C3E50),
+                              ),
+                            ),
+                          ),
+                          if (isActive)
+                            const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF4A90E2),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
