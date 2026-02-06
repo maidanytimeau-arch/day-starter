@@ -21,7 +21,7 @@ class HomeScreen extends ConsumerWidget {
       data: (profileService) {
         // Watch profiles stream to get active profile
         final profilesStream = profileService.streamProfiles();
-        final activeProfileStream = profileService.getActiveProfile().asStream();
+        final activeProfileStream = profileService.streamActiveProfile();
 
         return StreamBuilder<List<Profile>>(
           stream: profilesStream,
@@ -32,7 +32,7 @@ class HomeScreen extends ConsumerWidget {
               );
             }
 
-            final profiles = profilesSnapshot.data!;
+            final profiles = profilesSnapshot.data ?? [];
 
             return StreamBuilder<Profile?>(
               stream: activeProfileStream,
@@ -40,7 +40,7 @@ class HomeScreen extends ConsumerWidget {
                 final activeProfile = activeProfileSnapshot.data;
 
                 // If no active profile, show prompt to create one
-                if (activeProfile == null) {
+                if (activeProfile == null || activeProfile.id.isEmpty) {
                   return _buildNoProfileScreen(context);
                 }
 
@@ -682,7 +682,7 @@ class HomeScreen extends ConsumerWidget {
         return FutureBuilder<List<MealLog>>(
           future: mealService.getMeals(activeProfile.id),
           builder: (context, mealsSnapshot) {
-            if (!mealsSnapshot.hasData) {
+            if (!mealsSnapshot.hasData || mealsSnapshot.data == null) {
               return const SizedBox.shrink();
             }
 

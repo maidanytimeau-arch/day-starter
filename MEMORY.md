@@ -291,7 +291,7 @@ daystarter --non-interactive  # Output only, no prompts
 
 **PM2 services:**
 - `claw-activity-stream` - Discord bot (port 3000)
-- `claw-activity-parser` - Log parser (watches gateway.err.log)
+- `claw-activity-parser` - Log parser (uses `parser-full.js`)
 
 **Webhook endpoint:** `http://localhost:3000/webhook/activity`
 
@@ -318,6 +318,62 @@ daystarter --non-interactive  # Output only, no prompts
 - Check `pm2 logs claw-activity-parser` for errors
 - Manual test: `curl -X POST http://localhost:3000/webhook/activity -H "X-Webhook-Secret: ..." -d '{...}'`
 - Parser uses `tail -F -n 0` so restarts don't replay old logs
+
+**Issue 3 - Missing User Messages & Reasoning (2026-02-05):**
+- **Problem:** Parser only watched `gateway.err.log`, which doesn't contain user messages or reasoning blocks
+- **Root cause:** User messages and reasoning live in session files (`~/.openclaw/agents/main/sessions/*.jsonl`)
+- **Symptoms:** Activity stream showed only errors and slow listeners, not what Bob sent or what agent was thinking
+- **Fix:** Created `parser-full.js` which:
+  1. Tails `gateway.err.log` for system events (errors, slow listeners, tools, lane events, gateway errors, reloads, telegram events)
+  2. Polls session directory every 2 seconds for active session file
+  3. Parses JSONL lines for:
+     - User messages (role: "user") → `type: "info"`, message: "👤 User: ..."
+     - Reasoning blocks (type: "thinking") → `type: "reasoning"`
+     - Assistant responses (role: "assistant") → `type: "info"`, message: "🤖: ..."
+
+**Event types now captured:**
+- ✅ User messages (what Bob sends)
+- ✅ Reasoning blocks (agent thinking with 🧠 icon)
+- ✅ Assistant responses
+- ✅ Tool calls (success/fail)
+- ✅ Errors, lane waits, slow listeners, gateway errors, reloads, telegram events
+
+### Equity Research
+**Location:** `/Users/bclawd/.openclaw/workspace/equity-research/`
+**Purpose:** Daily equity briefing for ASX coverage stocks
+
+**Coverage (17 stocks):**
+- LIF (Life360), ABB (Aussie Broadband), CAR (CAR Group), IEL (IDP Education)
+- MP1 (Megaport), NWS (News Corp), NXT (NEXTDC), REA (REA Group)
+- SEK (SEEK), SLC (Superloop), TLS (Telstra), TNE (Technology One)
+- TPG (TPG Telecom), WTC (WiseTech), XRO (Xero), XYZ (Block), ZIP (Zip Co)
+
+**Key files:**
+- `tickers.json` - Coverage stock list
+- `morning_briefing.py` - Python script to fetch prices and news
+- `news_fetcher.py` - News fetching (placeholder)
+- `morning-briefing.sh` - Shell script wrapper (placeholder)
+
+**Data sources:**
+- Yahoo Finance via `yfinance` Python library (no API key required)
+- Web search for recent news (Brave Search API)
+
+**Morning briefing script (`morning_briefing.py`):**
+```bash
+cd /Users/bclawd/.openclaw/workspace/equity-research
+python3 morning_briefing.py
+```
+
+**Features:**
+- Fetches 2-day price history for all coverage stocks
+- Calculates daily change and percentage
+- Formats movement emoji (🟢 up, 🔴 down, ⚪ flat)
+- Saves briefing to `/tmp/equity-briefing.md`
+- Posts to Discord channel `bclawdaudit`
+
+**Discord alerts channel:** `146846460040238429` (Bob's alerts)
+
+**Alert criteria:** Earnings, M&A, guidance changes, management changes, regulatory issues
 
 ### GitHub Repository
 **URL:** https://github.com/maidanytimeau-arch/day-starter
@@ -392,15 +448,15 @@ ls ~/Documents/DayStarters/  # Daily planning notes
 
 ---
 
-*Last updated: 2026-02-05*
+*Last updated: 2026-02-06*
 
 ## LittleBites - Baby Food Tracker Project (2026-02-04)
 
 **Project Overview:**
 - **Location:** `/Users/bclawd/.openclaw/workspace/baby-tracker/`
-- **Status:** MVP Complete - All 7 screens built and running
-- **Tech Stack:** Flutter + Firebase (configured) + Riverpod
-- **Dev Time:** ~2 hours (parallel with 6 subagents)
+- **Status:** Firebase Integration In Progress - 5/7 screens refactored with real-time sync
+- **Tech Stack:** Flutter + Firebase (Firestore, Auth configured) + Riverpod
+- **Dev Time:** ~2 hours (MVP) + ongoing Firebase integration
 
 **What We Built:**
 1. Complete planning (PROJECT_PLAN.md, UI_MOCKUPS.md, DATA_MODELS.md)
@@ -457,13 +513,38 @@ ls ~/Documents/DayStarters/  # Daily planning notes
 - Use `DefaultFirebaseOptions.currentPlatform` in main.dart
 - Wrap initialization in try/catch to handle missing config gracefully
 
+**Firebase Integration Progress (2026-02-06):**
+
+**Completed Features:**
+- ✅ Firestore database created (littlebites-baby-tracker)
+- ✅ Firestore security rules and indexes configured
+- ✅ Firestore offline persistence enabled
+- ✅ Service provider architecture implemented
+- ✅ Auth state management with Firebase
+- ✅ Create profile screen and auth flow working
+- ✅ Real-time sync with Firestore streams
+
+**Screens Refactored to Firebase (5/7):**
+1. ✅ HomeScreen - Real-time sync
+2. ✅ AddMealScreen - Firebase integrated (commit: `8b63617`)
+3. ✅ FoodHistoryScreen - Real-time Firebase streams (commit: `62d2848`)
+4. ✅ LogReactionScreen - Firebase integrated (commit: `8eb1e5a`)
+5. ✅ PoopLogScreen - Firebase integration complete (commit: `60a8c8d`)
+6. ✅ ProfilesScreen - Firebase integration complete (commit: `db12981`)
+7. ⏳ SettingsScreen - Pending
+
 **Next Steps for LittleBites:**
-1. Enable Firestore, Auth, Storage in Firebase console
-2. Create Firebase collections for all data models
-3. Implement Firebase Auth (email, Google, Apple)
-4. Replace mock service with real Firebase services
-5. Implement real-time sync across devices
-6. Add photo upload to Firebase Storage
-7. Test on real devices (iOS, Android)
-8. Prepare for App Store launch
+1. Refactor SettingsScreen to Firebase (final screen)
+2. Run full app integration test
+3. Test end-to-end auth flow
+4. Add photo upload to Firebase Storage
+5. Test on real devices (iOS, Android)
+6. Prepare for App Store launch
+
+**Key Firebase Integration Patterns:**
+- Service provider architecture: `lib/services/providers/service_providers.dart`
+- AsyncDataBuilder widget for handling loading/error states
+- Stream-based real-time updates for Firestore data
+- Offline-first with automatic sync when connection restored
+- Stream-based profile updates for active profile
 

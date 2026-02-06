@@ -204,12 +204,13 @@ class _FoodHistoryScreenState extends ConsumerState<FoodHistoryScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (!snapshot.hasData) {
+                      if (!snapshot.hasData || snapshot.data == null) {
                         return const Center(child: Text('No data available'));
                       }
 
-                      final mealLogs = snapshot.data!['mealLogs'] as List;
-                      final reactions = snapshot.data!['reactions'] as List;
+                      final data = snapshot.data!;
+                      final mealLogs = (data['mealLogs'] ?? []) as List;
+                      final reactions = (data['reactions'] ?? []) as List;
 
                       final allStats = _computeFoodStats(mealLogs, reactions);
                       final filteredStats = _filterAndSortStats(allStats);

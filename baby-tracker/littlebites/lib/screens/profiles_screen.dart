@@ -26,13 +26,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             return StreamBuilder<List<Profile>>(
               stream: profileService.streamProfiles(),
               builder: (context, profilesSnapshot) {
-                if (!profilesSnapshot.hasData) {
+                if (!profilesSnapshot.hasData || profilesSnapshot.data == null) {
                   return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
                   );
                 }
 
-                final profiles = profilesSnapshot.data!;
+                final profiles = profilesSnapshot.data ?? [];
 
                 // Set initial active profile if not set
                 if (_activeProfileId == null && profiles.isNotEmpty) {
@@ -56,7 +56,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                           ),
                         );
 
-                    if (activeProfile.id.isEmpty) {
+                    if (activeProfile == null || activeProfile.id.isEmpty) {
                       return Scaffold(
                         appBar: AppBar(
                           title: const Text('Profiles'),
@@ -863,7 +863,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         return StreamBuilder<List<Profile>>(
           stream: profileService.streamProfiles(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (!snapshot.hasData || snapshot.data == null) {
               return const AlertDialog(
                 content: Center(child: CircularProgressIndicator()),
               );

@@ -6,7 +6,7 @@
 
 ## Current Context
 
-**Date:** 2026-02-05 (Wednesday)
+**Date:** 2026-02-06 (Friday)
 **Timezone:** Australia/Sydney (GMT+11)
 **Session:** Main session with Bob via Discord
 **Model:** GLM (zai/glm-4.7)
@@ -17,7 +17,7 @@
 ## Active Projects
 
 ### 🍼 1. LittleBites - Baby Food Tracker (PRIMARY PROJECT)
-**Status:** MVP COMPLETE - All 7 screens built and running
+**Status:** FIREBASE INTEGRATION NEARLY COMPLETE - 6/7 screens using Firebase
 **Location:** `/Users/bclawd/.openclaw/workspace/baby-tracker/`
 **What's done:**
 - ✅ Complete planning (PROJECT_PLAN.md, README.md)
@@ -36,23 +36,33 @@
 - ✅ Firebase apps registered (Android, iOS, Web, macOS, Windows)
 - ✅ Firebase configuration generated (firebase_options.dart)
 - ✅ Firebase initializing successfully on app startup
-- ✅ App running on Chrome (localhost:53876)
-- ✅ ~3,000 lines of code
-- ✅ Parallel development with 6 subagents (2 hours total)
+- ✅ App running successfully on Chrome (localhost:53876)
+- ✅ All Firebase CRUD services implemented (Meal, Reaction, Poop, Profile)
+- ✅ FirebaseAuthService complete (email/password, password reset)
+- ✅ Firestore security rules deployed
+- ✅ Firestore indexes created
+- ✅ All 6 screens refactored to use Firebase:
+  - HomeScreen: Real-time Firestore streams ✅ (commit: 1ab5e4a)
+  - AddMealScreen: FirebaseMealService ✅ (commit: 8b63617)
+  - FoodHistoryScreen: Firebase streams ✅ (commit: 62d2848)
+  - LogReactionScreen: FirebaseReactionService ✅ (commit: 8eb1e5a)
+  - PoopLogScreen: FirebasePoopService ✅ (commit: 60a8c8d)
+  - ProfilesScreen: FirebaseProfileService ✅ (commit: db12981)
+- ✅ Real-time sync working across browser tabs
+- ✅ Offline persistence enabled
+- ✅ ~5,000+ lines of code
+- ✅ All code committed and pushed to origin/develop
 
 **What's pending:**
-- ⏳ Enable Firebase services (Firestore, Auth, Storage) in Firebase console
-- ⏳ Create Firestore collections for all data models
-- ⏳ Implement Firebase Auth (email, Google, Apple)
-- ⏳ Replace mock service with real Firebase services
-- ⏳ Implement real-time sync across devices
+- ⏳ Refactor SettingsScreen to Firebase (final screen)
+- ⏳ Test auth flow end-to-end (signup, login, create profile, add meal)
 - ⏳ Add photo upload to Firebase Storage
 - ⏳ Implement data export (PDF/CSV)
 - ⏳ Test on real devices (iOS, Android)
 - ⏳ Prepare for App Store launch
 - ⏳ Beta testing with Bob + family
 
-**Timeline:** MVP complete - Firebase integration next (1-2 weeks)
+**Timeline:** Firebase integration nearly complete - 1 screen remaining, then testing phase
 **Tech stack:** Flutter + Firebase (Auth, Firestore, Storage) + Riverpod
 **Monetization:** One-time purchase ($19.99 single, $29.99 family pack)
 **Target:** Personal/family use → Scale to App Store public launch
@@ -168,13 +178,13 @@ Currently running:
 
 ## What I Was Just Doing
 
-Right before this memory update (2026-02-05 07:00 Sydney time):
-1. ✅ Fixed activity stream - webhook URL mismatch resolved
-2. ✅ Updated MEMORY.md with activity stream troubleshooting notes
+Right before this memory update (2026-02-06 18:03 Sydney time):
+1. ✅ Heartbeat check - LittleBites dev agent making progress on Firebase integration
+2. ✅ Updated MEMORY.md with LittleBites Firebase integration progress
 3. ✅ Updated NOW.md with current date and project status
 4. ✅ Memory maintenance completed (HEARTBEAT trigger)
 
-**Next action:** Wait for Bob's direction - continue LittleBites development or switch to other projects.
+**Next action:** Wait for Bob's direction - LittleBites nearly complete (1 screen remaining), or switch to other projects.
 
 ---
 
@@ -191,4 +201,4 @@ Right before this memory update (2026-02-05 07:00 Sydney time):
 
 ---
 
-*Last updated: 2026-02-05 07:00 Sydney time*
+*Last updated: 2026-02-06 18:10 Sydney time*
