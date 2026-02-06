@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/food.dart';
 import '../models/reaction.dart';
 import '../services/providers/service_providers.dart';
-import '../services/mock_data_service.dart';
 
 // Model to hold computed statistics for each food
 class FoodStats {
@@ -73,22 +72,10 @@ class _FoodHistoryScreenState extends ConsumerState<FoodHistoryScreen> {
   final List<String> _filterOptions = ['All', 'fruit', 'vegetable', 'protein', 'grain', 'dairy'];
   final List<String> _sortOptions = ['A-Z', 'Most Recent', 'Most Tried', 'Lowest Acceptance'];
 
-  List<FoodStats> _computeFoodStats(List foods, List mealLogs, List reactions) {
+  List<FoodStats> _computeFoodStats(List mealLogs, List reactions) {
     final Map<String, FoodStats> statsMap = {};
 
-    // Initialize stats for all foods
-    for (final food in foods) {
-      statsMap[food.id] = FoodStats(
-        food: food,
-        firstTried: null,
-        lastTried: null,
-        timesTried: 0,
-        acceptanceRate: 0.0,
-        worstReaction: null,
-      );
-    }
-
-    // Process meal logs
+    // Process meal logs to extract foods and build stats
     for (final meal in mealLogs) {
       for (final food in meal.foods) {
         if (!statsMap.containsKey(food.id)) {
@@ -221,11 +208,10 @@ class _FoodHistoryScreenState extends ConsumerState<FoodHistoryScreen> {
                         return const Center(child: Text('No data available'));
                       }
 
-                      final foods = MockDataService.foods;
                       final mealLogs = snapshot.data!['mealLogs'] as List;
                       final reactions = snapshot.data!['reactions'] as List;
 
-                      final allStats = _computeFoodStats(foods, mealLogs, reactions);
+                      final allStats = _computeFoodStats(mealLogs, reactions);
                       final filteredStats = _filterAndSortStats(allStats);
 
                       if (filteredStats.isEmpty) {
