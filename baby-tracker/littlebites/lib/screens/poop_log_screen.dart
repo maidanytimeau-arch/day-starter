@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/poop_log.dart';
 import '../models/profile.dart';
+import '../services/providers/service_providers.dart';
 
-class PoopLogScreen extends StatefulWidget {
+class PoopLogScreen extends ConsumerStatefulWidget {
   const PoopLogScreen({super.key});
 
   @override
-  State<PoopLogScreen> createState() => _PoopLogScreenState();
+  ConsumerState<PoopLogScreen> createState() => _PoopLogScreenState();
 }
 
-class _PoopLogScreenState extends State<PoopLogScreen> {
+class _PoopLogScreenState extends ConsumerState<PoopLogScreen> {
   Profile? _selectedProfile;
   String? _selectedColor;
   String? _selectedConsistency;
   final TextEditingController _notesController = TextEditingController();
   String? _selectedPhoto;
-  final List<PoopLog> _recentLogs = [];
+  bool _isSaving = false;
 
   final List<Map<String, String>> _colorOptions = [
     {'name': 'Black', 'emoji': '⚫', 'color': '#000000'},
@@ -38,16 +39,26 @@ class _PoopLogScreenState extends State<PoopLogScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedProfile = MockDataService.getActiveProfile();
-    _loadRecentLogs();
+    _loadActiveProfile();
   }
 
-  void _loadRecentLogs() {
-    final logs = MockDataService.getRecentPoopLogs();
-    setState(() {
-      _recentLogs.clear();
-      _recentLogs.addAll(logs.take(5));
-    });
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadActiveProfile() async {
+    final profileServiceAsync = ref.read(profileServiceProvider);
+    final profileService = profileServiceAsync.value;
+    if (profileService != null) {
+      final profile = await profileService.getActiveProfile();
+      if (mounted) {
+        setState(() {
+          _selectedProfile = profile;
+        });
+      }
+    }
   }
 
   bool _isConcerningColor(String color) {
@@ -59,12 +70,426 @@ class _PoopLogScreenState extends State<PoopLogScreen> {
   }
 
   @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    final isConcerning = _isConcerningColor(_selectedColor ?? '') ||
+                      _isConcerningConsistency(_selectedConsistency ?? '');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Poop Log'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      body: _isSaving
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Recent logs (streamed)
+                _buildRecentLogsSection(),
+                const SizedBox(height: 24),
+
+                // Log form
+                Card(
+                  color: isConcerning
+                      ? const Color(0xFFF5A623).withValues(alpha: 0.1)
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile selector
+                        _buildProfileSelector(),
+                        const SizedBox(height: 16),
+
+                        // Color picker
+                        _buildColorPicker(),
+                        const SizedBox(height: 16),
+
+                        // Consistency picker
+                        _buildConsistencyPicker(),
+                        const SizedBox(height: 16),
+
+                        // Photo upload
+                        _buildPhotoSection(),
+                        const SizedBox(height: 16),
+
+                        // Notes
+                        TextField(
+                          controller: _notesController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'Notes (optional)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[200],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Save button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (_selectedColor == null ||
+                                    _selectedConsistency == null)
+                                ? null
+                                : _saveLog,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isConcerning
+                                  ? const Color(0xFFF5A623)
+                                  : const Color(0xFF4A90E2),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Save Log',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
   }
 
-  void _saveLog() {
+  Widget _buildRecentLogsSection() {
+    final poopServiceAsync = ref.watch(poopServiceProvider);
+
+    return poopServiceAsync.when(
+      data: (poopService) {
+        final Stream<List<PoopLog>> stream;
+        if (_selectedProfile != null) {
+          stream = poopService.streamPoopLogs(_selectedProfile!.id);
+        } else {
+          stream = const Stream.empty();
+        }
+
+        return StreamBuilder<List<PoopLog>>(
+          stream: stream,
+          builder: (context, snapshot) {
+            final logs = snapshot.data ?? [];
+
+            if (logs.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recent Logs',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2C3E50),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...logs.take(5).map((log) => _buildLogCard(log)),
+              ],
+            );
+          },
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildLogCard(PoopLog log) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _getColorValue(log.color),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _getEmojiForColor(log.color),
+                style: const TextStyle(fontSize: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.timeDisplay,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  Text(
+                    '${log.color}, ${log.consistency}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileSelector() {
+    final profileServiceAsync = ref.watch(profileServiceProvider);
+
+    return profileServiceAsync.when(
+      data: (profileService) {
+        return StreamBuilder<List<Profile>>(
+          stream: profileService.streamProfiles(),
+          builder: (context, snapshot) {
+            final profiles = snapshot.data ?? [];
+
+            if (profiles.isEmpty) {
+              return const Text('No profiles available. Please create a profile first.');
+            }
+
+            return DropdownButtonFormField<Profile>(
+              hint: const Text('Select child'),
+              isExpanded: true,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              items: profiles.map((profile) {
+                return DropdownMenuItem(
+                  value: profile,
+                  child: Text(profile.name),
+                );
+              }).toList(),
+              value: _selectedProfile,
+              onChanged: (Profile? profile) {
+                setState(() {
+                  _selectedProfile = profile;
+                });
+              },
+            );
+          },
+        );
+      },
+      loading: () => const CircularProgressIndicator(),
+      error: (_, __) => const Text('Error loading profiles'),
+    );
+  }
+
+  Widget _buildColorPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Color',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          children: _colorOptions.map((option) {
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedColor = option['name'] as String;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedColor == option['name']
+                      ? const Color(0xFF4A90E2)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(8),
+                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      option['emoji'] as String,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      option['name'] as String,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsistencyPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Consistency',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          children: _consistencyOptions.map((option) {
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedConsistency = option['name'] as String;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedConsistency == option['name']
+                      ? const Color(0xFF4A90E2)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      option['icon'] as String,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      option['name'] as String,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Photo (Optional)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: () {
+            // TODO: Implement photo picker
+            setState(() {
+              _selectedPhoto = 'placeholder_photo';
+            });
+          },
+          child: Container(
+            width: double.infinity,
+            height: 80,
+            decoration: BoxDecoration(
+              color: _selectedPhoto != null
+                  ? Colors.grey[300]
+                  : Colors.grey[400],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[400]!),
+            ),
+            child: _selectedPhoto != null
+                ? Stack(
+                    children: [
+                      const Icon(Icons.image, size: 48),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () {
+                            setState(() {
+                              _selectedPhoto = null;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate,
+                            size: 48,
+                            color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap to add photo',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveLog() async {
     if (_selectedColor == null || _selectedConsistency == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -75,653 +500,94 @@ class _PoopLogScreenState extends State<PoopLogScreen> {
       return;
     }
 
-    // Create the poop log object
-    final newLog = PoopLog(
-      id: '', // Will be generated by MockDataService
-      profileId: _selectedProfile!.id,
-      timestamp: DateTime.now(),
-      color: _selectedColor!,
-      consistency: _selectedConsistency!,
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      photoUrls: _selectedPhoto != null ? [_selectedPhoto!] : null,
-    );
+    if (_selectedProfile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please create a profile first'),
+          backgroundColor: Color(0xFFE74C3C),
+        ),
+      );
+      return;
+    }
 
-    // Save to mock data service
-    MockDataService.addPoopLog(newLog);
-
-    // Update local state for immediate UI feedback
     setState(() {
-      _recentLogs.insert(0, newLog);
-      if (_recentLogs.length > 5) {
-        _recentLogs.removeLast();
+      _isSaving = true;
+    });
+
+    try {
+      // Create poop log object
+      final newLog = PoopLog(
+        id: '', // Will be generated by Firebase
+        profileId: _selectedProfile!.id,
+        timestamp: DateTime.now(),
+        color: _selectedColor!,
+        consistency: _selectedConsistency!,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        photoUrls: _selectedPhoto != null ? [_selectedPhoto!] : null,
+      );
+
+      // Save to Firebase
+      final poopServiceAsync = ref.read(poopServiceProvider);
+      final poopService = poopServiceAsync.value;
+      if (poopService != null) {
+        await poopService.addPoopLog(newLog);
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Log saved successfully!'),
+              backgroundColor: Color(0xFF50E3C2),
+            ),
+          );
+
+          // Navigate back
+          Navigator.pop(context);
+        }
       }
-    });
-
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Poop log saved!'),
-        backgroundColor: Color(0xFF50E3C2),
-      ),
-    );
-
-    _resetForm();
-  }
-
-  void _resetForm() {
-    setState(() {
-      _selectedColor = null;
-      _selectedConsistency = null;
-      _selectedPhoto = null;
-    });
-    _notesController.clear();
-  }
-
-  void _cancel() {
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Poop Log'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _cancel,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _cancel,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Child selector
-          _buildChildSelector(),
-          const SizedBox(height: 20),
-
-          // Color selector
-          _buildColorSelector(),
-          const SizedBox(height: 20),
-
-          // Consistency selector
-          _buildConsistencySelector(),
-          const SizedBox(height: 20),
-
-          // Photo upload placeholder
-          _buildPhotoUpload(),
-          const SizedBox(height: 20),
-
-          // Notes field
-          _buildNotesField(),
-          const SizedBox(height: 20),
-
-          // Action buttons
-          _buildActionButtons(),
-          const SizedBox(height: 30),
-
-          // Recent logs section
-          _buildRecentLogsSection(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChildSelector() {
-    final profiles = MockDataService.profiles;
-
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<Profile>(
-            value: _selectedProfile,
-            isExpanded: true,
-            hint: const Text('Select child'),
-            icon: const Icon(Icons.expand_more),
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF2C3E50),
-            ),
-            items: profiles.map((profile) {
-              return DropdownMenuItem<Profile>(
-                value: profile,
-                child: Row(
-                  children: [
-                    const Icon(Icons.child_care, size: 20, color: Color(0xFF4A90E2)),
-                    const SizedBox(width: 8),
-                    Text(profile.name),
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (Profile? profile) {
-              setState(() {
-                _selectedProfile = profile;
-              });
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '🎨 Color',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
-              ),
-              itemCount: _colorOptions.length,
-              itemBuilder: (context, index) {
-                final option = _colorOptions[index];
-                final isSelected = _selectedColor == option['name'];
-                final isConcerning = _isConcerningColor(option['name']!);
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedColor = option['name'];
-                    });
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF4A90E2).withOpacity(0.2)
-                          : isConcerning
-                              ? const Color(0xFFE74C3C).withOpacity(0.1)
-                              : const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF4A90E2)
-                            : isConcerning
-                                ? const Color(0xFFE74C3C)
-                                : const Color(0xFFECF0F1),
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          option['emoji']!,
-                          style: const TextStyle(fontSize: 28),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          option['name']!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                            color: const Color(0xFF2C3E50),
-                          ),
-                        ),
-                        if (isConcerning && !isSelected)
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 12,
-                            color: Color(0xFFE74C3C),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConsistencySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '🫧 Consistency',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: _consistencyOptions.map((option) {
-                final isSelected = _selectedConsistency == option['name'];
-                final isConcerning = _isConcerningConsistency(option['name']!);
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedConsistency = option['name'];
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF4A90E2).withOpacity(0.1)
-                          : isConcerning
-                              ? const Color(0xFFE74C3C).withOpacity(0.05)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: option == _consistencyOptions.last
-                              ? Colors.transparent
-                              : const Color(0xFFECF0F1),
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                          color: isSelected
-                              ? const Color(0xFF4A90E2)
-                              : isConcerning
-                                  ? const Color(0xFFE74C3C)
-                                  : const Color(0xFFBDC3C7),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          option['icon'],
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            option['name']!,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              color: const Color(0xFF2C3E50),
-                            ),
-                          ),
-                        ),
-                        if (isConcerning && !isSelected)
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 16,
-                            color: Color(0xFFE74C3C),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhotoUpload() {
-    return GestureDetector(
-      onTap: () {
-        // TODO: Implement photo picker
+    } catch (e) {
+      // Show error message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo upload coming soon!')),
+          SnackBar(
+            content: Text('Failed to save log: $e'),
+            backgroundColor: Color(0xFFE74C3C),
+          ),
         );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF4A90E2),
-            width: 1,
-          ),
-        ),
-        child: Card(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: _selectedPhoto != null
-            ? Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      _selectedPhoto!,
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildPhotoPlaceholder();
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedPhoto = null;
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : _buildPhotoPlaceholder(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhotoPlaceholder() {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: const Color(0xFF4A90E2).withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_photo_alternate_outlined,
-            size: 40,
-            color: const Color(0xFF4A90E2).withOpacity(0.7),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add Photo',
-            style: TextStyle(
-              fontSize: 14,
-              color: const Color(0xFF4A90E2).withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '(optional)',
-            style: TextStyle(
-              fontSize: 12,
-              color: const Color(0xFF7F8C8D),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotesField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '📝 Notes',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: TextField(
-            controller: _notesController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'Any additional notes...',
-              hintStyle: TextStyle(color: Color(0xFFBDC3C7)),
-              border: OutlineInputBorder(borderSide: BorderSide.none),
-              enabledBorder: OutlineInputBorder(borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(borderSide: BorderSide.none),
-              contentPadding: EdgeInsets.all(16),
-            ),
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _cancel,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              side: const BorderSide(color: Color(0xFF4A90E2)),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF4A90E2),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _saveLog,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A90E2),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentLogsSection() {
-    if (_recentLogs.isEmpty) {
-      return const SizedBox.shrink();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Recent Poop Logs',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ..._recentLogs.map((log) => _buildRecentLogCard(log)).toList(),
-      ],
-    );
   }
 
-  Widget _buildRecentLogCard(PoopLog log) {
-    final isConcerningColor = log.isConcerningColor;
-    final isConcerningConsistency = log.isConcerningConsistency;
-
-    Color logColor;
-    switch (log.color.toLowerCase()) {
+  Color _getColorValue(String? colorName) {
+    switch (colorName?.toLowerCase()) {
       case 'black':
-        logColor = Colors.black;
-        break;
+        return const Color(0xFF000000);
       case 'brown':
-        logColor = Colors.brown;
-        break;
+        return const Color(0xFF8B4513);
       case 'green':
-        logColor = Colors.green;
-        break;
+        return const Color(0xFF50C878);
       case 'yellow':
-        logColor = Colors.yellow;
-        break;
+        return const Color(0xFFFFD700);
       case 'red':
-        logColor = Colors.red;
-        break;
+        return const Color(0xFFE74C3C);
       case 'grey':
-        logColor = Colors.grey;
-        break;
+        return const Color(0xFFA0A0A0);
       default:
-        logColor = Colors.grey;
+        return Colors.grey;
     }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: logColor,
-                shape: BoxShape.circle,
-                border: isConcerningColor
-                    ? Border.all(color: const Color(0xFFE74C3C), width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Text(
-                  log.colorEmoji,
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        log.timeDisplay,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF2C3E50),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (isConcerningColor || isConcerningConsistency)
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          size: 16,
-                          color: Color(0xFFE74C3C),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${log.color.capitalize()}, ${log.consistency.toLowerCase()}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF7F8C8D),
-                    ),
-                  ),
-                  if (log.notes != null && log.notes!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      log.notes!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF95A5A6),
-                        fontStyle: FontStyle.italic,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (log.photoUrls != null && log.photoUrls!.isNotEmpty)
-              const Icon(
-                Icons.photo_outlined,
-                size: 20,
-                color: Color(0xFFBDC3C7),
-              ),
-          ],
-        ),
-      ),
-    );
   }
-}
 
-// Extension for capitalizing first letter
-extension StringExtension on String {
-  String capitalize() {
-    return isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+  String _getEmojiForColor(String? colorName) {
+    final option = _colorOptions.firstWhere(
+      (opt) => opt['name'] == colorName,
+      orElse: () => _colorOptions[1],
+    );
+    return option['emoji'] as String;
   }
 }
